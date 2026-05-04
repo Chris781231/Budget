@@ -12,10 +12,14 @@
         <div class="container">
             <a class="navbar-brand fw-bold" href="/"><i class="bi bi-wallet2"></i> Költségvetés</a>
             <div class="navbar-nav ms-auto">
+                {% if current_user.is_authenticated %}
                 <a class="nav-link" href="/"><i class="bi bi-house"></i> Főoldal</a>
                 <a class="nav-link" href="/transactions"><i class="bi bi-list-ul"></i> Tranzakciók</a>
                 <a class="nav-link" href="/categories"><i class="bi bi-tags"></i> Kategóriák</a>
                 <a class="nav-link" href="/reports"><i class="bi bi-bar-chart"></i> Riportok</a>
+                <span class="nav-link text-white-50"><i class="bi bi-person-circle"></i> {{ current_user.name }}</span>
+                <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> Kijelentkezés</a>
+                {% endif %}
             </div>
         </div>
     </nav>

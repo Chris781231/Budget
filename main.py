@@ -1,11 +1,42 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_dance.contrib.google import make_google_blueprint, google
+from flask_dance.consumer import oauth_authorized
 import sqlite3
 from datetime import datetime
 
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # csak fejlesztéshez, HTTP-n is működjön
+
 app = Flask(__name__)
 app.secret_key = 'koltsegvetes_secret_key'
+app.config["GOOGLE_OAUTH_CLIENT_ID"] = os.environ.get("GOOGLE_CLIENT_ID", "")
+app.config["GOOGLE_OAUTH_CLIENT_SECRET"] = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
+google_bp = make_google_blueprint(scope=["profile", "email"])
+app.register_blueprint(google_bp, url_prefix="/login")
+
+login_manager = LoginManager(app)
+login_manager.login_view = "login_page"
 
 DATABASE = 'koltsegvetes.db'
+
+
+class User(UserMixin):
+    def __init__(self, id, name, email):
+        self.id = id
+        self.name = name
+        self.email = email
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    conn.close()
+    if row:
+        return User(row["id"], row["name"], row["email"])
+    return None
 
 
 def get_db():
@@ -17,6 +48,15 @@ def get_db():
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            google_id TEXT UNIQUE NOT NULL,
+            name TEXT,
+            email TEXT
+        )
+    ''')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
@@ -56,7 +96,53 @@ def init_db():
     conn.close()
 
 
+@oauth_authorized.connect_via(google_bp)
+def google_logged_in(blueprint, token):
+    if not token:
+        flash("Nem sikerült bejelentkezni Google-fiókkal.", "danger")
+        return False
+
+    resp = blueprint.session.get("/oauth2/v2/userinfo")
+    if not resp.ok:
+        flash("Nem sikerült lekérni a Google-fiók adatait.", "danger")
+        return False
+
+    info = resp.json()
+    google_id = info["id"]
+    name = info.get("name", "")
+    email = info.get("email", "")
+
+    conn = get_db()
+    user_row = conn.execute("SELECT * FROM users WHERE google_id=?", (google_id,)).fetchone()
+    if user_row is None:
+        conn.execute("INSERT INTO users (google_id, name, email) VALUES (?, ?, ?)", (google_id, name, email))
+        conn.commit()
+        user_row = conn.execute("SELECT * FROM users WHERE google_id=?", (google_id,)).fetchone()
+    conn.close()
+
+    user = User(user_row["id"], user_row["name"], user_row["email"])
+    login_user(user)
+    flash(f"Üdvözöllek, {name}!", "success")
+    return False  # ne tárolja a tokent session-ben
+
+
+@app.route('/login')
+def login_page():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash("Sikeresen kijelentkeztél.", "info")
+    return redirect(url_for("login_page"))
+
+
 @app.route('/')
+@login_required
 def index():
     conn = get_db()
 
@@ -77,6 +163,7 @@ def index():
 
 
 @app.route('/transactions', methods=['GET', 'POST'])
+@login_required
 def transactions():
     conn = get_db()
 
@@ -110,6 +197,7 @@ def transactions():
 
 
 @app.route('/transactions/delete/<int:id>')
+@login_required
 def delete_transaction(id):
     conn = get_db()
     conn.execute("DELETE FROM transactions WHERE id=?", (id,))
@@ -120,6 +208,7 @@ def delete_transaction(id):
 
 
 @app.route('/categories', methods=['GET', 'POST'])
+@login_required
 def categories():
     conn = get_db()
 
@@ -137,6 +226,7 @@ def categories():
 
 
 @app.route('/categories/delete/<int:id>')
+@login_required
 def delete_category(id):
     conn = get_db()
     conn.execute("DELETE FROM categories WHERE id=?", (id,))
@@ -147,6 +237,7 @@ def delete_category(id):
 
 
 @app.route('/reports')
+@login_required
 def reports():
     conn = get_db()
 
