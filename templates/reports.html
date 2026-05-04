@@ -1,6 +1,21 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2 class="mb-4">Riportok</h2>
+<h2 class="mb-3">Riportok</h2>
+
+<ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if active_wallet == 'all' %}active{% endif %}" href="?wallet=all">
+            <i class="bi bi-collection"></i> Összes
+        </a>
+    </li>
+    {% for w in wallets %}
+    <li class="nav-item">
+        <a class="nav-link {% if active_wallet == w.id %}active{% endif %}" href="?wallet={{ w.id }}">
+            <i class="bi bi-wallet2"></i> {{ w.name }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
 
 <div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-calendar-month"></i> Havi összesítő</div>

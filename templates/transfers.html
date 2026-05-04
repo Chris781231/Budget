@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Tárcák közötti átutalások</h2>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-arrow-left-right"></i> Új átutalás rögzítése</div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Forrás tárca</label>
+                    <select name="from_wallet_id" class="form-select" required>
+                        {% for w in wallets %}
+                        <option value="{{ w.id }}">{{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Cél tárca</label>
+                    <select name="to_wallet_id" class="form-select" required>
+                        {% for w in wallets %}
+                        <option value="{{ w.id }}" {% if loop.index == 2 %}selected{% endif %}>{{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Összeg (Ft)</label>
+                    <input type="number" name="amount" class="form-control" required min="1" placeholder="0">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Dátum</label>
+                    <input type="date" name="date" class="form-control" value="{{ today }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Megjegyzés</label>
+                    <input type="text" name="description" class="form-control" placeholder="Opcionális">
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right"></i> Rögzítés</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header"><i class="bi bi-list-ul"></i> Átutalások</div>
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Dátum</th>
+                    <th>Forrás</th>
+                    <th></th>
+                    <th>Cél</th>
+                    <th class="text-end">Összeg</th>
+                    <th>Megjegyzés</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transfers %}
+                <tr>
+                    <td>{{ t.date }}</td>
+                    <td>{{ t.from_name }}</td>
+                    <td class="text-center text-muted"><i class="bi bi-arrow-right"></i></td>
+                    <td>{{ t.to_name }}</td>
+                    <td class="text-end fw-bold text-primary">{{ "%.0f"|format(t.amount) }} Ft</td>
+                    <td class="text-muted">{{ t.description or '-' }}</td>
+                    <td>
+                        <a href="/transfers/delete/{{ t.id }}"
+                           class="btn btn-sm btn-outline-danger"
+                           onclick="return confirm('Biztosan törlöd ezt az átutalást?')">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-3">Még nincsenek átutalások</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
