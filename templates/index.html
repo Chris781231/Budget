@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Főoldal</h2>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-success shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-arrow-up-circle"></i> Bevételek</h5>
+                <h3>{{ "%.0f"|format(income) }} Ft</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-danger shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-arrow-down-circle"></i> Kiadások</h5>
+                <h3>{{ "%.0f"|format(expense) }} Ft</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white {{ 'bg-primary' if balance >= 0 else 'bg-warning' }} shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-wallet2"></i> Egyenleg</h5>
+                <h3>{{ "%.0f"|format(balance) }} Ft</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history"></i> Legutóbbi 10 tranzakció</span>
+        <a href="/transactions" class="btn btn-sm btn-primary">Összes megtekintése</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Dátum</th>
+                    <th>Leírás</th>
+                    <th>Kategória</th>
+                    <th class="text-end">Összeg</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr>
+                    <td>{{ t.date }}</td>
+                    <td>{{ t.description or '-' }}</td>
+                    <td>{{ t.category_name or '-' }}</td>
+                    <td class="text-end fw-bold {{ 'text-success' if t.type == 'income' else 'text-danger' }}">
+                        {{ '+' if t.type == 'income' else '-' }}{{ "%.0f"|format(t.amount) }} Ft
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Még nincsenek tranzakciók</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

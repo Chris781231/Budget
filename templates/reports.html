@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Riportok</h2>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-calendar-month"></i> Havi összesítő</div>
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Hónap</th>
+                    <th class="text-end">Bevétel</th>
+                    <th class="text-end">Kiadás</th>
+                    <th class="text-end">Egyenleg</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in monthly %}
+                {% set bal = m.income - m.expense %}
+                <tr>
+                    <td>{{ m.month }}</td>
+                    <td class="text-end text-success">{{ "%.0f"|format(m.income) }} Ft</td>
+                    <td class="text-end text-danger">{{ "%.0f"|format(m.expense) }} Ft</td>
+                    <td class="text-end fw-bold {{ 'text-success' if bal >= 0 else 'text-danger' }}">
+                        {{ "%.0f"|format(bal) }} Ft
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Még nincsenek adatok</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header"><i class="bi bi-pie-chart"></i> Kiadások kategóriánként</div>
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Kategória</th>
+                    <th class="text-end">Összeg</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in by_category %}
+                <tr>
+                    <td>{{ c.name }}</td>
+                    <td class="text-end text-danger fw-bold">{{ "%.0f"|format(c.total) }} Ft</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="text-center text-muted py-3">Még nincsenek adatok</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Kategóriák</h2>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><i class="bi bi-plus-circle"></i> Új kategória hozzáadása</div>
+    <div class="card-body">
+        <form method="POST" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Kategória neve</label>
+                <input type="text" name="name" class="form-control" required placeholder="Pl. Rezsi">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Típus</label>
+                <select name="type" class="form-select" required>
+                    <option value="expense">Kiadás</option>
+                    <option value="income">Bevétel</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus"></i> Hozzáadás</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header text-success fw-bold"><i class="bi bi-arrow-up-circle"></i> Bevétel kategóriák</div>
+            <ul class="list-group list-group-flush">
+                {% for c in categories if c.type == 'income' %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ c.name }}
+                    <a href="/categories/delete/{{ c.id }}"
+                       class="btn btn-sm btn-outline-danger"
+                       onclick="return confirm('Biztosan törlöd ezt a kategóriát?')">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">Nincs bevétel kategória</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header text-danger fw-bold"><i class="bi bi-arrow-down-circle"></i> Kiadás kategóriák</div>
+            <ul class="list-group list-group-flush">
+                {% for c in categories if c.type == 'expense' %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ c.name }}
+                    <a href="/categories/delete/{{ c.id }}"
+                       class="btn btn-sm btn-outline-danger"
+                       onclick="return confirm('Biztosan törlöd ezt a kategóriát?')">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">Nincs kiadás kategória</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
