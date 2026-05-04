@@ -7,13 +7,17 @@
     <div class="card-body">
         <form method="POST">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Név</label>
                     <input type="text" name="name" class="form-control" required placeholder="Pl. Revolut">
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-3">
                     <label class="form-label">Megjegyzés</label>
                     <input type="text" name="description" class="form-control" placeholder="Opcionális">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Induló egyenleg (Ft) <span class="text-muted fw-normal">— opcionális</span></label>
+                    <input type="number" name="initial_balance" class="form-control" placeholder="0" step="1">
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus"></i> Hozzáadás</button>
@@ -26,11 +30,13 @@
 <div class="card shadow-sm">
     <div class="card-header"><i class="bi bi-wallet2"></i> Tárcák</div>
     <div class="card-body p-0">
-        <table class="table table-striped mb-0">
+        <table class="table table-striped mb-0 align-middle">
             <thead>
                 <tr>
+                    <th style="width:80px">Sorrend</th>
                     <th>Név</th>
                     <th>Megjegyzés</th>
+                    <th class="text-end">Induló egyenleg</th>
                     <th class="text-end">Egyenleg</th>
                     <th></th>
                 </tr>
@@ -38,8 +44,19 @@
             <tbody>
                 {% for w in wallets %}
                 <tr>
+                    <td>
+                        <a href="/wallets/move/{{ w.id }}/up" class="btn btn-sm btn-outline-secondary {% if loop.first %}disabled{% endif %}" title="Feljebb">
+                            <i class="bi bi-arrow-up"></i>
+                        </a>
+                        <a href="/wallets/move/{{ w.id }}/down" class="btn btn-sm btn-outline-secondary {% if loop.last %}disabled{% endif %}" title="Lejjebb">
+                            <i class="bi bi-arrow-down"></i>
+                        </a>
+                    </td>
                     <td class="fw-bold">{{ w.name }}</td>
                     <td class="text-muted">{{ w.description or '-' }}</td>
+                    <td class="text-end text-muted">
+                        {% if w.initial_balance %}{{ "%.0f"|format(w.initial_balance) }} Ft{% else %}-{% endif %}
+                    </td>
                     <td class="text-end fw-bold {{ 'text-success' if w.balance >= 0 else 'text-danger' }}">
                         {{ "%.0f"|format(w.balance) }} Ft
                     </td>
@@ -55,7 +72,7 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4" class="text-center text-muted py-3">Még nincsenek tárcák</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-3">Még nincsenek tárcák</td></tr>
                 {% endfor %}
             </tbody>
         </table>

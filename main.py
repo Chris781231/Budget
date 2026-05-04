@@ -63,6 +63,9 @@ def get_active_wallet(wallets):
 
 
 def wallet_balance(conn, wallet_id):
+    initial = conn.execute(
+        "SELECT COALESCE(initial_balance, 0) FROM wallets WHERE id=?",
+        (wallet_id,)).fetchone()[0]
     income = conn.execute(
         "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type='income' AND wallet_id=?",
         (wallet_id,)).fetchone()[0]
@@ -75,7 +78,7 @@ def wallet_balance(conn, wallet_id):
     t_out = conn.execute(
         "SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE from_wallet_id=?",
         (wallet_id,)).fetchone()[0]
-    return income - expense + t_in - t_out
+    return initial + income - expense + t_in - t_out
 
 
 def init_db():
@@ -90,14 +93,27 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS wallets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        description TEXT)''')
+        description TEXT,
+        initial_balance REAL DEFAULT 0,
+        sort_order INTEGER)''')
 
     c.execute("SELECT COUNT(*) FROM wallets")
     if c.fetchone()[0] == 0:
-        c.executemany("INSERT INTO wallets (name, description) VALUES (?, ?)", [
-            ('Készpénz', ''),
-            ('Gránit bankkártya', ''),
+        c.executemany("INSERT INTO wallets (name, description, initial_balance, sort_order) VALUES (?, ?, 0, ?)", [
+            ('Készpénz', '', 1),
+            ('Gránit bankkártya', '', 2),
         ])
+
+    try:
+        c.execute("ALTER TABLE wallets ADD COLUMN initial_balance REAL DEFAULT 0")
+        c.execute("UPDATE wallets SET initial_balance = 0 WHERE initial_balance IS NULL")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE wallets ADD COLUMN sort_order INTEGER")
+        c.execute("UPDATE wallets SET sort_order = id WHERE sort_order IS NULL")
+    except Exception:
+        pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -192,7 +208,7 @@ def logout():
 @login_required
 def index():
     conn = get_db()
-    wallets = conn.execute("SELECT * FROM wallets ORDER BY id").fetchall()
+    wallets = conn.execute("SELECT * FROM wallets ORDER BY sort_order").fetchall()
     active = get_active_wallet(wallets)
 
     if active == 'all':
@@ -238,7 +254,7 @@ def index():
 @login_required
 def transactions():
     conn = get_db()
-    wallets = conn.execute("SELECT * FROM wallets ORDER BY id").fetchall()
+    wallets = conn.execute("SELECT * FROM wallets ORDER BY sort_order").fetchall()
     active = get_active_wallet(wallets)
 
     if request.method == 'POST':
@@ -292,13 +308,17 @@ def delete_transaction(id):
 def wallets():
     conn = get_db()
     if request.method == 'POST':
-        conn.execute("INSERT INTO wallets (name, description) VALUES (?, ?)",
-                     (request.form['name'], request.form.get('description', '')))
+        initial = request.form.get('initial_balance', '').strip()
+        initial = float(initial) if initial else 0.0
+        max_order = conn.execute("SELECT COALESCE(MAX(sort_order), 0) FROM wallets").fetchone()[0]
+        conn.execute(
+            "INSERT INTO wallets (name, description, initial_balance, sort_order) VALUES (?, ?, ?, ?)",
+            (request.form['name'], request.form.get('description', ''), initial, max_order + 1))
         conn.commit()
         flash('Tárca hozzáadva!', 'success')
         conn.close()
         return redirect(url_for('wallets'))
-    all_wallets = conn.execute("SELECT * FROM wallets ORDER BY id").fetchall()
+    all_wallets = conn.execute("SELECT * FROM wallets ORDER BY sort_order").fetchall()
     wallet_list = [
         {'id': w['id'], 'name': w['name'], 'description': w['description'],
          'balance': wallet_balance(conn, w['id'])}
@@ -313,8 +333,10 @@ def wallets():
 def edit_wallet(id):
     conn = get_db()
     if request.method == 'POST':
-        conn.execute("UPDATE wallets SET name=?, description=? WHERE id=?",
-                     (request.form['name'], request.form.get('description', ''), id))
+        initial = request.form.get('initial_balance', '').strip()
+        initial = float(initial) if initial else 0.0
+        conn.execute("UPDATE wallets SET name=?, description=?, initial_balance=? WHERE id=?",
+                     (request.form['name'], request.form.get('description', ''), initial, id))
         conn.commit()
         conn.close()
         flash('Tárca módosítva!', 'success')
@@ -345,13 +367,36 @@ def delete_wallet(id):
     return redirect(url_for('wallets'))
 
 
+@app.route('/wallets/move/<int:id>/<direction>')
+@login_required
+def move_wallet(id, direction):
+    conn = get_db()
+    current = conn.execute("SELECT * FROM wallets WHERE id=?", (id,)).fetchone()
+    if current:
+        cur_order = current['sort_order']
+        if direction == 'up':
+            neighbor = conn.execute(
+                "SELECT * FROM wallets WHERE sort_order < ? ORDER BY sort_order DESC LIMIT 1",
+                (cur_order,)).fetchone()
+        else:
+            neighbor = conn.execute(
+                "SELECT * FROM wallets WHERE sort_order > ? ORDER BY sort_order ASC LIMIT 1",
+                (cur_order,)).fetchone()
+        if neighbor:
+            conn.execute("UPDATE wallets SET sort_order=? WHERE id=?", (neighbor['sort_order'], id))
+            conn.execute("UPDATE wallets SET sort_order=? WHERE id=?", (cur_order, neighbor['id']))
+            conn.commit()
+    conn.close()
+    return redirect(url_for('wallets'))
+
+
 # --- Transfers ---
 
 @app.route('/transfers', methods=['GET', 'POST'])
 @login_required
 def transfers():
     conn = get_db()
-    all_wallets = conn.execute("SELECT * FROM wallets ORDER BY id").fetchall()
+    all_wallets = conn.execute("SELECT * FROM wallets ORDER BY sort_order").fetchall()
     if request.method == 'POST':
         from_id = int(request.form['from_wallet_id'])
         to_id = int(request.form['to_wallet_id'])
@@ -423,7 +468,7 @@ def delete_category(id):
 @login_required
 def reports():
     conn = get_db()
-    wallets = conn.execute("SELECT * FROM wallets ORDER BY id").fetchall()
+    wallets = conn.execute("SELECT * FROM wallets ORDER BY sort_order").fetchall()
     active = get_active_wallet(wallets)
 
     if active == 'all':
