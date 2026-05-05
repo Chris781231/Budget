@@ -5,10 +5,13 @@ from flask_dance.contrib.google import make_google_blueprint, google
 from flask_dance.consumer import oauth_authorized
 import sqlite3
 from datetime import datetime
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+if os.environ.get("RAILWAY_ENVIRONMENT") is None:
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = 'koltsegvetes_secret_key'
 
 google_bp = make_google_blueprint(
