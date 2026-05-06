@@ -33,7 +33,7 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Kategória</label>
+                    <label class="form-label">Alapkategória</label>
                     <select name="category_id" id="category-select" class="form-select">
                         {% for c in categories %}
                         <option value="{{ c.id }}" data-type="{{ c.type }}"
@@ -66,13 +66,22 @@
                 <div id="items-container">
                     {% for item in items %}
                     <div class="row g-2 mb-2 item-row">
-                        <div class="col-md-7">
+                        <div class="col-md-5">
                             <input type="text" name="item_description" class="form-control form-control-sm item-desc"
                                    placeholder="Tétel neve" value="{{ item.description }}">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <input type="number" name="item_amount" class="form-control form-control-sm item-amount"
                                    placeholder="Összeg" min="0" step="1" value="{{ "%.0f"|format(item.amount) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <select name="item_category_id" class="form-select form-select-sm item-cat">
+                                <option value="">-- Kategória --</option>
+                                {% for c in categories %}
+                                <option value="{{ c.id }}" data-type="{{ c.type }}"
+                                    {{ 'selected' if c.id == item.category_id }}>{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">
@@ -98,6 +107,21 @@
 
 {% block scripts %}
 <script>
+const CATEGORIES = [
+    {% for c in categories %}{"id": {{ c.id }}, "name": "{{ c.name }}", "type": "{{ c.type }}"},
+    {% endfor %}
+];
+
+function buildCategoryOptions(selectedId) {
+    const type = document.getElementById('type-select').value;
+    let html = '<option value="">-- Kategória --</option>';
+    CATEGORIES.filter(c => c.type === type).forEach(c => {
+        const sel = (selectedId && c.id == selectedId) ? 'selected' : '';
+        html += `<option value="${c.id}" ${sel}>${c.name}</option>`;
+    });
+    return html;
+}
+
 function filterCategories() {
     const type = document.getElementById('type-select').value;
     const select = document.getElementById('category-select');
@@ -110,7 +134,12 @@ function filterCategories() {
         if (visible && !firstVisible) firstVisible = opt;
     }
     if (!hasSelected && firstVisible) select.value = firstVisible.value;
+    document.querySelectorAll('.item-cat').forEach(sel => {
+        const current = sel.value;
+        sel.innerHTML = buildCategoryOptions(current);
+    });
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     filterCategories();
     attachItemListeners();
@@ -138,15 +167,21 @@ function toggleItems() {
 }
 
 function addItemRow() {
+    const defaultCat = document.getElementById('category-select').value;
     const container = document.getElementById('items-container');
     const row = document.createElement('div');
     row.className = 'row g-2 mb-2 item-row';
     row.innerHTML = `
-        <div class="col-md-7">
+        <div class="col-md-5">
             <input type="text" name="item_description" class="form-control form-control-sm item-desc" placeholder="Tétel neve">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <input type="number" name="item_amount" class="form-control form-control-sm item-amount" placeholder="Összeg" min="0" step="1">
+        </div>
+        <div class="col-md-3">
+            <select name="item_category_id" class="form-select form-select-sm item-cat">
+                ${buildCategoryOptions(defaultCat)}
+            </select>
         </div>
         <div class="col-md-2">
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">

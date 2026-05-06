@@ -157,6 +157,11 @@ def init_db():
         amount REAL NOT NULL,
         FOREIGN KEY (transaction_id) REFERENCES transactions(id))''')
 
+    try:
+        c.execute("ALTER TABLE transaction_items ADD COLUMN category_id INTEGER REFERENCES categories(id)")
+    except Exception:
+        pass
+
     c.execute("SELECT COUNT(*) FROM categories")
     if c.fetchone()[0] == 0:
         c.executemany("INSERT INTO categories (name, type) VALUES (?, ?)", [
@@ -270,27 +275,28 @@ def transactions():
     if request.method == 'POST':
         items_desc = request.form.getlist('item_description')
         items_amount = request.form.getlist('item_amount')
+        items_cat = request.form.getlist('item_category_id')
         valid_items = []
-        for desc, amt in zip(items_desc, items_amount):
+        for desc, amt, cat in zip(items_desc, items_amount, items_cat):
             desc = desc.strip()
             try:
                 amt = float(amt)
             except (ValueError, TypeError):
                 continue
             if desc and amt > 0:
-                valid_items.append((desc, amt))
+                valid_items.append((desc, amt, int(cat) if cat else None))
         amount = float(request.form['amount'])
         if valid_items:
-            amount = sum(a for _, a in valid_items)
+            amount = sum(a for _, a, _ in valid_items)
         cursor = conn.execute(
             "INSERT INTO transactions (amount, description, category_id, type, date, wallet_id) VALUES (?, ?, ?, ?, ?, ?)",
             (amount, request.form['description'], request.form['category_id'],
              request.form['type'], request.form['date'], request.form['wallet_id']))
         tx_id = cursor.lastrowid
-        for desc, amt in valid_items:
+        for desc, amt, cat_id in valid_items:
             conn.execute(
-                "INSERT INTO transaction_items (transaction_id, description, amount) VALUES (?, ?, ?)",
-                (tx_id, desc, amt))
+                "INSERT INTO transaction_items (transaction_id, description, amount, category_id) VALUES (?, ?, ?, ?)",
+                (tx_id, desc, amt, cat_id))
         conn.commit()
         flash('Tranzakció sikeresen hozzáadva!', 'success')
         return redirect(url_for('transactions', wallet=request.form['wallet_id']))
@@ -335,9 +341,11 @@ def transaction_detail(id):
         conn.close()
         flash('Tranzakció nem található.', 'danger')
         return redirect(url_for('transactions'))
-    items = conn.execute(
-        "SELECT * FROM transaction_items WHERE transaction_id=? ORDER BY id",
-        (id,)).fetchall()
+    items = conn.execute('''
+        SELECT ti.*, c.name as category_name
+        FROM transaction_items ti
+        LEFT JOIN categories c ON ti.category_id = c.id
+        WHERE ti.transaction_id=? ORDER BY ti.id''', (id,)).fetchall()
     conn.close()
     return render_template('transaction_detail.html', transaction=t, items=items)
 
@@ -349,27 +357,28 @@ def edit_transaction(id):
     if request.method == 'POST':
         items_desc = request.form.getlist('item_description')
         items_amount = request.form.getlist('item_amount')
+        items_cat = request.form.getlist('item_category_id')
         valid_items = []
-        for desc, amt in zip(items_desc, items_amount):
+        for desc, amt, cat in zip(items_desc, items_amount, items_cat):
             desc = desc.strip()
             try:
                 amt = float(amt)
             except (ValueError, TypeError):
                 continue
             if desc and amt > 0:
-                valid_items.append((desc, amt))
+                valid_items.append((desc, amt, int(cat) if cat else None))
         amount = float(request.form['amount'])
         if valid_items:
-            amount = sum(a for _, a in valid_items)
+            amount = sum(a for _, a, _ in valid_items)
         conn.execute(
             "UPDATE transactions SET amount=?, description=?, category_id=?, type=?, date=?, wallet_id=? WHERE id=?",
             (amount, request.form['description'], request.form['category_id'],
              request.form['type'], request.form['date'], request.form['wallet_id'], id))
         conn.execute("DELETE FROM transaction_items WHERE transaction_id=?", (id,))
-        for desc, amt in valid_items:
+        for desc, amt, cat_id in valid_items:
             conn.execute(
-                "INSERT INTO transaction_items (transaction_id, description, amount) VALUES (?, ?, ?)",
-                (id, desc, amt))
+                "INSERT INTO transaction_items (transaction_id, description, amount, category_id) VALUES (?, ?, ?, ?)",
+                (id, desc, amt, cat_id))
         conn.commit()
         conn.close()
         flash('Tranzakció módosítva!', 'success')
@@ -379,9 +388,11 @@ def edit_transaction(id):
         conn.close()
         flash('Tranzakció nem található.', 'danger')
         return redirect(url_for('transactions'))
-    items = conn.execute(
-        "SELECT * FROM transaction_items WHERE transaction_id=? ORDER BY id",
-        (id,)).fetchall()
+    items = conn.execute('''
+        SELECT ti.*, c.name as category_name
+        FROM transaction_items ti
+        LEFT JOIN categories c ON ti.category_id = c.id
+        WHERE ti.transaction_id=? ORDER BY ti.id''', (id,)).fetchall()
     categories = conn.execute("SELECT * FROM categories ORDER BY type, name").fetchall()
     wallets_list = conn.execute("SELECT * FROM wallets ORDER BY sort_order").fetchall()
     conn.close()
@@ -579,10 +590,21 @@ def reports():
             FROM transactions
             GROUP BY month ORDER BY month DESC LIMIT 12''').fetchall()
         by_category = conn.execute('''
-            SELECT c.name, SUM(t.amount) as total
-            FROM transactions t JOIN categories c ON t.category_id = c.id
-            WHERE t.type='expense'
-            GROUP BY c.name ORDER BY total DESC''').fetchall()
+            SELECT name, SUM(total) as total FROM (
+                SELECT c.name, SUM(ti.amount) as total
+                FROM transaction_items ti
+                JOIN categories c ON ti.category_id = c.id
+                JOIN transactions t ON ti.transaction_id = t.id
+                WHERE t.type='expense'
+                GROUP BY c.name
+                UNION ALL
+                SELECT c.name, SUM(t.amount) as total
+                FROM transactions t JOIN categories c ON t.category_id = c.id
+                WHERE t.type='expense'
+                AND t.id NOT IN (
+                    SELECT DISTINCT transaction_id FROM transaction_items WHERE category_id IS NOT NULL)
+                GROUP BY c.name
+            ) GROUP BY name ORDER BY total DESC''').fetchall()
     else:
         monthly = conn.execute('''
             SELECT strftime('%Y-%m', date) as month,
@@ -591,10 +613,21 @@ def reports():
             FROM transactions WHERE wallet_id=?
             GROUP BY month ORDER BY month DESC LIMIT 12''', (active,)).fetchall()
         by_category = conn.execute('''
-            SELECT c.name, SUM(t.amount) as total
-            FROM transactions t JOIN categories c ON t.category_id = c.id
-            WHERE t.type='expense' AND t.wallet_id=?
-            GROUP BY c.name ORDER BY total DESC''', (active,)).fetchall()
+            SELECT name, SUM(total) as total FROM (
+                SELECT c.name, SUM(ti.amount) as total
+                FROM transaction_items ti
+                JOIN categories c ON ti.category_id = c.id
+                JOIN transactions t ON ti.transaction_id = t.id
+                WHERE t.type='expense' AND t.wallet_id=?
+                GROUP BY c.name
+                UNION ALL
+                SELECT c.name, SUM(t.amount) as total
+                FROM transactions t JOIN categories c ON t.category_id = c.id
+                WHERE t.type='expense' AND t.wallet_id=?
+                AND t.id NOT IN (
+                    SELECT DISTINCT transaction_id FROM transaction_items WHERE category_id IS NOT NULL)
+                GROUP BY c.name
+            ) GROUP BY name ORDER BY total DESC''', (active, active)).fetchall()
 
     conn.close()
     return render_template('reports.html', monthly=monthly, by_category=by_category,

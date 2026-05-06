@@ -53,6 +53,7 @@
             <thead>
                 <tr>
                     <th>Tétel neve</th>
+                    <th>Kategória</th>
                     <th class="text-end">Összeg</th>
                 </tr>
             </thead>
@@ -60,13 +61,14 @@
                 {% for item in items %}
                 <tr>
                     <td>{{ item.description }}</td>
+                    <td>{{ item.category_name or '<span class="text-muted">—</span>' }}</td>
                     <td class="text-end">{{ "%.0f"|format(item.amount) }} Ft</td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot class="table-light">
                 <tr>
-                    <th>Összesen</th>
+                    <th colspan="2">Összesen</th>
                     <th class="text-end">{{ "%.0f"|format(items|sum(attribute='amount')) }} Ft</th>
                 </tr>
             </tfoot>
