@@ -21,6 +21,14 @@
                        placeholder="0">
                 <div class="form-text">Ha a tárca már létező pénzösszeggel indul, add meg itt. Ez beleszámít az egyenlegbe, de nem jelenik meg tranzakcióként.</div>
             </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" name="is_cash" id="is_cash" class="form-check-input"
+                       {{ 'checked' if wallet.is_cash }}>
+                <label class="form-check-label" for="is_cash">
+                    <i class="bi bi-cash-coin"></i> Készpénzes tárca
+                    <small class="text-muted d-block fw-normal">Készpénzes fizetésnél az összeg 5 Ft-ra kerekítve rögzítődik</small>
+                </label>
+            </div>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> Mentés</button>
                 <a href="/wallets" class="btn btn-outline-secondary">Mégse</a>

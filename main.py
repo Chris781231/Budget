@@ -88,12 +88,18 @@ def wallet_balance(conn, wallet_id):
     return initial + income - expense + t_in - t_out
 
 
+def round_to_5(amount):
+    n = round(amount)
+    r = n % 5
+    return n - r if r < 3 else n + (5 - r)
+
+
 def setup_new_user(conn, user_id):
     conn.execute(
-        "INSERT INTO wallets (user_id, name, description, initial_balance, sort_order) VALUES (?, ?, ?, 0, ?)",
+        "INSERT INTO wallets (user_id, name, description, initial_balance, sort_order, is_cash) VALUES (?, ?, ?, 0, ?, 1)",
         (user_id, 'Készpénz', '', 1))
     conn.execute(
-        "INSERT INTO wallets (user_id, name, description, initial_balance, sort_order) VALUES (?, ?, ?, 0, ?)",
+        "INSERT INTO wallets (user_id, name, description, initial_balance, sort_order, is_cash) VALUES (?, ?, ?, 0, ?, 0)",
         (user_id, 'Bankszámla', '', 2))
     conn.executemany("INSERT INTO categories (user_id, name, type) VALUES (?, ?, ?)", [
         (user_id, 'Fizetés', 'income'),
@@ -193,6 +199,11 @@ def init_db():
     c.execute("UPDATE transactions SET wallet_id=1 WHERE wallet_id IS NULL")
     try:
         c.execute("ALTER TABLE transaction_items ADD COLUMN category_id INTEGER REFERENCES categories(id)")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE wallets ADD COLUMN is_cash INTEGER DEFAULT 0")
+        c.execute("UPDATE wallets SET is_cash=1 WHERE name='Készpénz'")
     except Exception:
         pass
 
@@ -429,10 +440,13 @@ def transactions():
             amount = sum(a for _, a, _ in valid_items)
         wallet_id = request.form['wallet_id']
         cat_id = request.form['category_id']
-        if not conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone():
+        wallet_row = conn.execute("SELECT id, is_cash FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone()
+        if not wallet_row:
             conn.close()
             flash('Érvénytelen tárca.', 'danger')
             return redirect(url_for('transactions'))
+        if wallet_row['is_cash']:
+            amount = round_to_5(amount)
         if cat_id and not conn.execute("SELECT id FROM categories WHERE id=? AND user_id=?", (cat_id, uid)).fetchone():
             conn.close()
             flash('Érvénytelen kategória.', 'danger')
@@ -491,6 +505,7 @@ def transactions():
     is_filtered = any([q, date_from, date_to, filter_type, filter_cat])
 
     categories = conn.execute("SELECT * FROM categories WHERE user_id=? ORDER BY type, name", (uid,)).fetchall()
+    cash_wallet_ids = [w['id'] for w in wallets if w['is_cash']]
     conn.close()
     today = datetime.today().strftime('%Y-%m-%d')
     return render_template('transactions.html',
@@ -498,7 +513,8 @@ def transactions():
         wallets=wallets, active_wallet=active,
         q=q, date_from=date_from, date_to=date_to,
         filter_type=filter_type, filter_cat=filter_cat, is_filtered=is_filtered,
-        page=page, total_pages=total_pages, total=total)
+        page=page, total_pages=total_pages, total=total,
+        cash_wallet_ids=cash_wallet_ids)
 
 
 @app.route('/transactions/<int:id>')
@@ -554,10 +570,13 @@ def edit_transaction(id):
             amount = sum(a for _, a, _ in valid_items)
         wallet_id = request.form['wallet_id']
         cat_id = request.form['category_id']
-        if not conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone():
+        wallet_row = conn.execute("SELECT id, is_cash FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone()
+        if not wallet_row:
             conn.close()
             flash('Érvénytelen tárca.', 'danger')
             return redirect(url_for('transactions'))
+        if wallet_row['is_cash']:
+            amount = round_to_5(amount)
         if cat_id and not conn.execute("SELECT id FROM categories WHERE id=? AND user_id=?", (cat_id, uid)).fetchone():
             conn.close()
             flash('Érvénytelen kategória.', 'danger')
@@ -589,9 +608,11 @@ def edit_transaction(id):
         WHERE ti.transaction_id=? ORDER BY ti.id''', (id,)).fetchall()
     categories = conn.execute("SELECT * FROM categories WHERE user_id=? ORDER BY type, name", (uid,)).fetchall()
     wallets_list = conn.execute("SELECT * FROM wallets WHERE user_id=? ORDER BY sort_order", (uid,)).fetchall()
+    cash_wallet_ids = [w['id'] for w in wallets_list if w['is_cash']]
     conn.close()
     return render_template('transaction_edit.html', transaction=t, items=items,
-                           categories=categories, wallets=wallets_list)
+                           categories=categories, wallets=wallets_list,
+                           cash_wallet_ids=cash_wallet_ids)
 
 
 @app.route('/transactions/delete/<int:id>', methods=['POST'])
@@ -623,11 +644,12 @@ def wallets():
     if request.method == 'POST':
         initial = request.form.get('initial_balance', '').strip()
         initial = float(initial) if initial else 0.0
+        is_cash = 1 if request.form.get('is_cash') else 0
         max_order = conn.execute(
             "SELECT COALESCE(MAX(sort_order), 0) FROM wallets WHERE user_id=?", (uid,)).fetchone()[0]
         conn.execute(
-            "INSERT INTO wallets (user_id, name, description, initial_balance, sort_order) VALUES (?, ?, ?, ?, ?)",
-            (uid, request.form['name'], request.form.get('description', ''), initial, max_order + 1))
+            "INSERT INTO wallets (user_id, name, description, initial_balance, sort_order, is_cash) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, request.form['name'], request.form.get('description', ''), initial, max_order + 1, is_cash))
         conn.commit()
         flash('Tárca hozzáadva!', 'success')
         conn.close()
@@ -635,7 +657,7 @@ def wallets():
     all_wallets = conn.execute("SELECT * FROM wallets WHERE user_id=? ORDER BY sort_order", (uid,)).fetchall()
     wallet_list = [
         {'id': w['id'], 'name': w['name'], 'description': w['description'],
-         'balance': wallet_balance(conn, w['id'])}
+         'balance': wallet_balance(conn, w['id']), 'is_cash': w['is_cash']}
         for w in all_wallets
     ]
     conn.close()
@@ -650,8 +672,9 @@ def edit_wallet(id):
     if request.method == 'POST':
         initial = request.form.get('initial_balance', '').strip()
         initial = float(initial) if initial else 0.0
-        conn.execute("UPDATE wallets SET name=?, description=?, initial_balance=? WHERE id=? AND user_id=?",
-                     (request.form['name'], request.form.get('description', ''), initial, id, uid))
+        is_cash = 1 if request.form.get('is_cash') else 0
+        conn.execute("UPDATE wallets SET name=?, description=?, initial_balance=?, is_cash=? WHERE id=? AND user_id=?",
+                     (request.form['name'], request.form.get('description', ''), initial, is_cash, id, uid))
         conn.commit()
         conn.close()
         flash('Tárca módosítva!', 'success')

@@ -87,11 +87,12 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Összeg (Ft)</label>
-                    <input type="number" name="amount" class="form-control" required min="1" placeholder="0">
+                    <input type="number" name="amount" id="amount-field" class="form-control" required min="1" placeholder="0">
+                    <div id="rounding-hint" class="mt-1" style="display:none;"></div>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Tárca</label>
-                    <select name="wallet_id" class="form-select" required>
+                    <select name="wallet_id" id="wallet-select" class="form-select" required>
                         {% for w in wallets %}
                         <option value="{{ w.id }}" {% if active_wallet == w.id or (active_wallet == 'all' and loop.first) %}selected{% endif %}>
                             {{ w.name }}
@@ -233,6 +234,30 @@ const CATEGORIES = [
     {% for c in categories %}{"id": {{ c.id }}, "name": "{{ c.name }}", "type": "{{ c.type }}"},
     {% endfor %}
 ];
+const CASH_WALLET_IDS = {{ cash_wallet_ids | tojson }};
+
+function roundTo5(n) {
+    const r = Math.round(n) % 5;
+    return r < 3 ? Math.round(n) - r : Math.round(n) + (5 - r);
+}
+
+function isCashWallet() {
+    const sel = document.getElementById('wallet-select');
+    return sel && CASH_WALLET_IDS.includes(parseInt(sel.value));
+}
+
+function updateRoundingHint() {
+    const amountField = document.getElementById('amount-field');
+    const hint = document.getElementById('rounding-hint');
+    if (!hint || !amountField) return;
+    const raw = parseFloat(amountField.value) || 0;
+    if (isCashWallet() && raw > 0 && raw % 5 !== 0) {
+        hint.innerHTML = `<span class="badge bg-warning text-dark"><i class="bi bi-cash-coin"></i> Kerekítve: ${roundTo5(raw)} Ft</span>`;
+        hint.style.display = '';
+    } else {
+        hint.style.display = 'none';
+    }
+}
 
 function buildCategoryOptions(selectedId) {
     const type = document.getElementById('type-select').value;
@@ -259,7 +284,12 @@ function filterCategories() {
         sel.innerHTML = buildCategoryOptions(current);
     });
 }
-document.addEventListener('DOMContentLoaded', filterCategories);
+document.addEventListener('DOMContentLoaded', () => {
+    filterCategories();
+    document.getElementById('wallet-select').addEventListener('change', updateRoundingHint);
+    document.getElementById('amount-field').addEventListener('input', updateRoundingHint);
+    updateRoundingHint();
+});
 
 function toggleItems() {
     const section = document.getElementById('items-section');
@@ -315,15 +345,16 @@ function recalcAmount() {
         const desc = row.querySelector('.item-desc').value.trim();
         if (desc || amt > 0) { total += amt; hasItems = true; }
     });
-    const amountField = document.querySelector('input[name="amount"]');
+    const amountField = document.getElementById('amount-field');
     if (hasItems) {
-        amountField.value = Math.round(total);
+        amountField.value = isCashWallet() ? roundTo5(total) : Math.round(total);
         amountField.readOnly = true;
         amountField.classList.add('bg-light');
     } else {
         amountField.readOnly = false;
         amountField.classList.remove('bg-light');
     }
+    updateRoundingHint();
 }
 </script>
 {% endblock %}

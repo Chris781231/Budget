@@ -16,11 +16,19 @@
                     <label class="form-label">Megjegyzés</label>
                     <input type="text" name="description" class="form-control" placeholder="Opcionális">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">Induló egyenleg (Ft) <span class="text-muted fw-normal">— opcionális</span></label>
                     <input type="number" name="initial_balance" class="form-control" placeholder="0" step="1">
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
+                <div class="col-md-2 d-flex align-items-end pb-1">
+                    <div class="form-check">
+                        <input type="checkbox" name="is_cash" id="is_cash_new" class="form-check-input">
+                        <label class="form-check-label" for="is_cash_new">
+                            <i class="bi bi-cash-coin"></i> Készpénzes tárca
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus"></i> Hozzáadás</button>
                 </div>
             </div>
@@ -53,7 +61,10 @@
                             <i class="bi bi-arrow-down"></i>
                         </a>
                     </td>
-                    <td class="fw-bold">{{ w.name }}</td>
+                    <td class="fw-bold">
+                        {{ w.name }}
+                        {% if w.is_cash %}<span class="badge bg-warning text-dark ms-1" title="Készpénzes tárca – 5 Ft-ra kerekítés"><i class="bi bi-cash-coin"></i></span>{% endif %}
+                    </td>
                     <td class="text-muted">{{ w.description or '-' }}</td>
                     <td class="text-end text-muted">
                         {% if w.initial_balance %}{{ "%.0f"|format(w.initial_balance) }} Ft{% else %}-{% endif %}
