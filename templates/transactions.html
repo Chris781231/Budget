@@ -66,9 +66,9 @@
                 {% endif %}
             </div>
         </form>
-        {% if is_filtered %}
-        <div class="mt-2 text-muted small">{{ transactions|length }} találat</div>
-        {% endif %}
+        <div class="mt-2 text-muted small">
+            {% if is_filtered %}{{ total }} találat{% endif %}
+        </div>
     </div>
 </div>
 
@@ -199,6 +199,31 @@
             </tbody>
         </table>
     </div>
+    {% if total_pages > 1 %}
+    {% set base = '?wallet=' ~ active_wallet ~ '&q=' ~ q ~ '&date_from=' ~ date_from ~ '&date_to=' ~ date_to ~ '&filter_type=' ~ filter_type ~ '&category_id=' ~ filter_cat %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">{{ total }} tranzakció, {{ page }}. oldal / {{ total_pages }}</small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {{ 'disabled' if page == 1 }}">
+                    <a class="page-link" href="{{ base }}&page={{ page - 1 }}">&#8249;</a>
+                </li>
+                {% for p in range(1, total_pages + 1) %}
+                {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                <li class="page-item {{ 'active' if p == page }}">
+                    <a class="page-link" href="{{ base }}&page={{ p }}">{{ p }}</a>
+                </li>
+                {% elif p == page - 3 or p == page + 3 %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+                {% endfor %}
+                <li class="page-item {{ 'disabled' if page == total_pages }}">
+                    <a class="page-link" href="{{ base }}&page={{ page + 1 }}">&#8250;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

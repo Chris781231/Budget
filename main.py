@@ -456,33 +456,38 @@ def transactions():
     filter_type = request.args.get('filter_type', '')
     filter_cat = request.args.get('category_id', '')
 
-    sql = '''SELECT t.*, c.name as category_name, w.name as wallet_name,
-                   (SELECT COUNT(*) FROM transaction_items WHERE transaction_id = t.id) as item_count
-            FROM transactions t
-            LEFT JOIN categories c ON t.category_id = c.id
-            JOIN wallets w ON t.wallet_id = w.id
-            WHERE w.user_id=?'''
+    per_page = 25
+    page = max(1, int(request.args.get('page', 1) or 1))
+
+    where = ' FROM transactions t LEFT JOIN categories c ON t.category_id = c.id JOIN wallets w ON t.wallet_id = w.id WHERE w.user_id=?'
     params = [uid]
     if active != 'all':
-        sql += ' AND t.wallet_id=?'
+        where += ' AND t.wallet_id=?'
         params.append(active)
     if q:
-        sql += ' AND t.description LIKE ?'
+        where += ' AND t.description LIKE ?'
         params.append(f'%{q}%')
     if date_from:
-        sql += ' AND t.date >= ?'
+        where += ' AND t.date >= ?'
         params.append(date_from)
     if date_to:
-        sql += ' AND t.date <= ?'
+        where += ' AND t.date <= ?'
         params.append(date_to)
     if filter_type in ('income', 'expense'):
-        sql += ' AND t.type=?'
+        where += ' AND t.type=?'
         params.append(filter_type)
     if filter_cat:
-        sql += ' AND t.category_id=?'
+        where += ' AND t.category_id=?'
         params.append(filter_cat)
-    sql += ' ORDER BY t.date DESC'
-    all_transactions = conn.execute(sql, params).fetchall()
+
+    total = conn.execute('SELECT COUNT(*)' + where, params).fetchone()[0]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+
+    sql = ('SELECT t.*, c.name as category_name, w.name as wallet_name,'
+           ' (SELECT COUNT(*) FROM transaction_items WHERE transaction_id = t.id) as item_count'
+           + where + ' ORDER BY t.date DESC LIMIT ? OFFSET ?')
+    all_transactions = conn.execute(sql, params + [per_page, (page - 1) * per_page]).fetchall()
     is_filtered = any([q, date_from, date_to, filter_type, filter_cat])
 
     categories = conn.execute("SELECT * FROM categories WHERE user_id=? ORDER BY type, name", (uid,)).fetchall()
@@ -492,7 +497,8 @@ def transactions():
         transactions=all_transactions, categories=categories, today=today,
         wallets=wallets, active_wallet=active,
         q=q, date_from=date_from, date_to=date_to,
-        filter_type=filter_type, filter_cat=filter_cat, is_filtered=is_filtered)
+        filter_type=filter_type, filter_cat=filter_cat, is_filtered=is_filtered,
+        page=page, total_pages=total_pages, total=total)
 
 
 @app.route('/transactions/<int:id>')
