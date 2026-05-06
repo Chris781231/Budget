@@ -17,14 +17,23 @@
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span class="fw-bold">{{ b.cat_name }}</span>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
                             <span class="{{ text_class }} small">
                                 {{ "%.0f"|format(b.spent) }} / {{ "%.0f"|format(b.monthly_limit) }} Ft &nbsp;({{ pct }}%)
                             </span>
+                            <form method="POST" class="d-flex gap-1 align-items-center">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="category_id" value="{{ b.category_id }}">
+                                <input type="number" name="monthly_limit" value="{{ b.monthly_limit|int }}"
+                                       class="form-control form-control-sm" style="width:110px;" min="1" step="1">
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Mentés">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                            </form>
                             <form method="POST" action="{{ url_for('delete_budget', id=b.id) }}" class="d-inline"
                                   onsubmit="return confirm('Törlöd a keretet?')">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Törlés">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
@@ -50,9 +59,9 @@
 
     <div class="col-lg-4">
         <div class="card shadow-sm">
-            <div class="card-header"><i class="bi bi-plus-circle"></i> Keret hozzáadása / módosítása</div>
+            <div class="card-header"><i class="bi bi-plus-circle"></i> Új keret hozzáadása</div>
             <div class="card-body">
-                {% if free_cats or budget_list %}
+                {% if free_cats %}
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
@@ -60,10 +69,7 @@
                         <select name="category_id" class="form-select" required>
                             <option value="">-- Válassz --</option>
                             {% for c in free_cats %}
-                            <option value="{{ c.id }}">{{ c.name }} (új)</option>
-                            {% endfor %}
-                            {% for b in budget_list %}
-                            <option value="{{ b.category_id }}">{{ b.cat_name }} (módosítás)</option>
+                            <option value="{{ c.id }}">{{ c.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -77,7 +83,7 @@
                     </button>
                 </form>
                 {% else %}
-                <p class="text-muted small">Minden kiadás kategóriához van már keret beállítva.</p>
+                <p class="text-muted small">Minden kiadás kategóriához be van állítva keret. A meglévőket balra szerkesztheted.</p>
                 {% endif %}
             </div>
         </div>
