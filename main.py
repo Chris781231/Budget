@@ -1,5 +1,8 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+import csv
+import io
+import zipfile
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_dance.consumer import oauth_authorized
@@ -222,6 +225,63 @@ def delete_account():
     logout_user()
     flash("Fiókod és minden adatod véglegesen törlve.", "info")
     return redirect(url_for('login_page'))
+
+
+@app.route('/account/export')
+@login_required
+def export_account():
+    uid = current_user.id
+    conn = get_db()
+
+    def make_csv(headers, rows):
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(headers)
+        w.writerows(rows)
+        return buf.getvalue().encode('utf-8-sig')
+
+    transactions = conn.execute('''
+        SELECT t.date, t.type, t.amount, t.description, c.name, w.name
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        JOIN wallets w ON t.wallet_id = w.id
+        WHERE w.user_id = ? ORDER BY t.date DESC''', (uid,)).fetchall()
+
+    transfers = conn.execute('''
+        SELECT tr.date, fw.name, tw.name, tr.amount, tr.description
+        FROM transfers tr
+        JOIN wallets fw ON tr.from_wallet_id = fw.id
+        JOIN wallets tw ON tr.to_wallet_id = tw.id
+        WHERE fw.user_id = ? ORDER BY tr.date DESC''', (uid,)).fetchall()
+
+    wallets = conn.execute(
+        "SELECT name, description, initial_balance FROM wallets WHERE user_id = ? ORDER BY sort_order",
+        (uid,)).fetchall()
+
+    categories = conn.execute(
+        "SELECT name, type FROM categories WHERE user_id = ? ORDER BY type, name",
+        (uid,)).fetchall()
+
+    conn.close()
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('tranzakciok.csv', make_csv(
+            ['Dátum', 'Típus', 'Összeg (Ft)', 'Leírás', 'Kategória', 'Tárca'],
+            transactions))
+        zf.writestr('atutalasok.csv', make_csv(
+            ['Dátum', 'Forrás tárca', 'Cél tárca', 'Összeg (Ft)', 'Megjegyzés'],
+            transfers))
+        zf.writestr('tarcak.csv', make_csv(
+            ['Név', 'Megjegyzés', 'Induló egyenleg (Ft)'],
+            wallets))
+        zf.writestr('kategoriak.csv', make_csv(
+            ['Név', 'Típus'],
+            categories))
+
+    zip_buf.seek(0)
+    return send_file(zip_buf, mimetype='application/zip',
+                     as_attachment=True, download_name='koltsegvetes_export.zip')
 
 
 # --- Auth ---
