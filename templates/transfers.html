@@ -6,6 +6,7 @@
     <div class="card-header"><i class="bi bi-arrow-left-right"></i> Új átutalás rögzítése</div>
     <div class="card-body">
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Forrás tárca</label>
@@ -68,11 +69,13 @@
                     <td class="text-end fw-bold text-primary">{{ "%.0f"|format(t.amount) }} Ft</td>
                     <td class="text-muted">{{ t.description or '-' }}</td>
                     <td>
-                        <a href="/transfers/delete/{{ t.id }}"
-                           class="btn btn-sm btn-outline-danger"
-                           onclick="return confirm('Biztosan törlöd ezt az átutalást?')">
-                            <i class="bi bi-trash"></i>
-                        </a>
+                        <form method="POST" action="/transfers/delete/{{ t.id }}" class="d-inline"
+                              onsubmit="return confirm('Biztosan törlöd ezt az átutalást?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% else %}

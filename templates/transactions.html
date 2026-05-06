@@ -21,6 +21,7 @@
     <div class="card-header"><i class="bi bi-plus-circle"></i> Új tranzakció hozzáadása</div>
     <div class="card-body">
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="row g-3">
                 <div class="col-md-2">
                     <label class="form-label">Típus</label>
@@ -128,11 +129,13 @@
                         <a href="/transactions/edit/{{ t.id }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
-                        <a href="/transactions/delete/{{ t.id }}"
-                           class="btn btn-sm btn-outline-danger"
-                           onclick="return confirm('Biztosan törlöd ezt a tranzakciót?')">
-                            <i class="bi bi-trash"></i>
-                        </a>
+                        <form method="POST" action="/transactions/delete/{{ t.id }}" class="d-inline"
+                              onsubmit="return confirm('Biztosan törlöd ezt a tranzakciót?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% else %}

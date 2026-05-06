@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_dance.consumer import oauth_authorized
+from flask_wtf.csrf import CSRFProtect
 import sqlite3
 from datetime import datetime
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -13,6 +14,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT") is None:
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
+csrf = CSRFProtect(app)
 
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""),
@@ -455,7 +457,7 @@ def edit_transaction(id):
                            categories=categories, wallets=wallets_list)
 
 
-@app.route('/transactions/delete/<int:id>')
+@app.route('/transactions/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_transaction(id):
     conn = get_db()
@@ -525,7 +527,7 @@ def edit_wallet(id):
     return render_template('wallet_edit.html', wallet=w)
 
 
-@app.route('/wallets/delete/<int:id>')
+@app.route('/wallets/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_wallet(id):
     conn = get_db()
@@ -610,7 +612,7 @@ def transfers():
     return render_template('transfers.html', transfers=all_transfers, wallets=all_wallets, today=today)
 
 
-@app.route('/transfers/delete/<int:id>')
+@app.route('/transfers/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_transfer(id):
     conn = get_db()
@@ -649,7 +651,7 @@ def categories():
     return render_template('categories.html', categories=all_categories)
 
 
-@app.route('/categories/delete/<int:id>')
+@app.route('/categories/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_category(id):
     conn = get_db()
