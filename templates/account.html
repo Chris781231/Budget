@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <h2 class="mb-4"><i class="bi bi-person-circle"></i> Fiókom</h2>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">Fiók adatok</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Név</dt>
+                    <dd class="col-sm-8">{{ current_user.name }}</dd>
+                    <dt class="col-sm-4">E-mail</dt>
+                    <dd class="col-sm-8">{{ current_user.email }}</dd>
+                    <dt class="col-sm-4">Bejelentkezés</dt>
+                    <dd class="col-sm-8">Google-fiókkal</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-danger">
+            <div class="card-header text-danger fw-bold"><i class="bi bi-exclamation-triangle"></i> Veszélyes zóna</div>
+            <div class="card-body">
+                <p>A fiók törlése <strong>véglegesen és visszavonhatatlanul</strong> törli az összes adatodat:</p>
+                <ul class="text-muted">
+                    <li>Összes tranzakció és tételek</li>
+                    <li>Összes tárca</li>
+                    <li>Összes kategória</li>
+                    <li>Összes átutalás</li>
+                    <li>Felhasználói fiók</li>
+                </ul>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="bi bi-trash"></i> Fiók és adatok végleges törlése
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-danger">
+                <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Fiók végleges törlése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Biztosan törölni szeretnéd a fiókodat és <strong>minden adatodat</strong>? Ez a művelet <strong>nem vonható vissza</strong>.</p>
+                <p class="text-muted small">A törlés után automatikusan kijelentkezünk, és az adatok nem állíthatók vissza.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                <form method="POST" action="{{ url_for('delete_account') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Igen, töröljük véglegesen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

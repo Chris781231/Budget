@@ -190,6 +190,40 @@ def init_db():
     conn.close()
 
 
+# --- Privacy & Account ---
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+
+@app.route('/account')
+@login_required
+def account():
+    return render_template('account.html')
+
+
+@app.route('/account/delete', methods=['POST'])
+@login_required
+def delete_account():
+    uid = current_user.id
+    conn = get_db()
+    conn.execute('''DELETE FROM transaction_items WHERE transaction_id IN (
+        SELECT t.id FROM transactions t JOIN wallets w ON t.wallet_id = w.id WHERE w.user_id = ?)''', (uid,))
+    conn.execute('''DELETE FROM transactions WHERE wallet_id IN (
+        SELECT id FROM wallets WHERE user_id = ?)''', (uid,))
+    conn.execute('''DELETE FROM transfers WHERE from_wallet_id IN (SELECT id FROM wallets WHERE user_id = ?)
+        OR to_wallet_id IN (SELECT id FROM wallets WHERE user_id = ?)''', (uid, uid))
+    conn.execute("DELETE FROM wallets WHERE user_id = ?", (uid,))
+    conn.execute("DELETE FROM categories WHERE user_id = ?", (uid,))
+    conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+    conn.commit()
+    conn.close()
+    logout_user()
+    flash("Fiókod és minden adatod véglegesen törlve.", "info")
+    return redirect(url_for('login_page'))
+
+
 # --- Auth ---
 
 @oauth_authorized.connect_via(google_bp)

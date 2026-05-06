@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h2 class="mb-4"><i class="bi bi-shield-check"></i> Adatkezelési tájékoztató</h2>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5>1. Az adatkezelő</h5>
+                <p>Az alkalmazást magánszemélyként üzemelteti Ligeti Károly. Az alkalmazás kizárólag személyes pénzügyi nyilvántartás céljára készült, nem kereskedelmi célú.</p>
+
+                <h5 class="mt-4">2. Milyen adatokat gyűjtünk?</h5>
+                <ul>
+                    <li><strong>Google-fiók adatok:</strong> név, e-mail cím, Google-azonosító – a bejelentkezéshez szükséges</li>
+                    <li><strong>Pénzügyi adatok:</strong> a felhasználó által rögzített tranzakciók, tárcák, kategóriák</li>
+                    <li><strong>Blokkfotók:</strong> feltöltés esetén átmenetileg feldolgozásra kerülnek, de nem tároljuk őket</li>
+                </ul>
+
+                <h5 class="mt-4">3. Az adatkezelés célja és jogalapja</h5>
+                <p>Az adatokat kizárólag a személyes pénzügyi nyilvántartás funkcióinak biztosításához kezeljük. Jogalap: az érintett hozzájárulása (GDPR 6. cikk (1) a) pont), amelyet a Google-bejelentkezéssel ad meg.</p>
+
+                <h5 class="mt-4">4. Harmadik felek</h5>
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr><th>Szolgáltató</th><th>Szerep</th><th>Adatvédelmi tájékoztató</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Google LLC</td>
+                            <td>Bejelentkezés (OAuth 2.0)</td>
+                            <td><a href="https://policies.google.com/privacy" target="_blank">policies.google.com</a></td>
+                        </tr>
+                        <tr>
+                            <td>Railway (PBC)</td>
+                            <td>Alkalmazás és adatbázis tárolása (USA)</td>
+                            <td><a href="https://railway.app/legal/privacy" target="_blank">railway.app/legal/privacy</a></td>
+                        </tr>
+                        <tr>
+                            <td>Anthropic PBC</td>
+                            <td>Blokkfotó elemzés (Claude API) – csak feltöltéskor</td>
+                            <td><a href="https://www.anthropic.com/privacy" target="_blank">anthropic.com/privacy</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="text-muted small"><i class="bi bi-info-circle"></i> Az adatok Railway USA-alapú szerverein tárolódnak. Ez az EU–USA adattovábbítás a Railway adatvédelmi garanciái alapján történik.</p>
+
+                <h5 class="mt-4">5. Adatmegőrzési idő</h5>
+                <p>Az adatokat addig tároljuk, amíg a felhasználói fiók aktív. Fiók törlése esetén minden személyes adat és pénzügyi adat véglegesen törlődik.</p>
+
+                <h5 class="mt-4">6. Az érintett jogai</h5>
+                <ul>
+                    <li><strong>Hozzáférés joga:</strong> bármikor megtekintheted a tárolt adataidat az alkalmazásban</li>
+                    <li><strong>Törlés joga:</strong> fiókod és minden adatod törölhető a <a href="{{ url_for('account') }}">Fiókom</a> oldalon</li>
+                    <li><strong>Adathordozhatóság:</strong> adataidat CSV formátumban exportálhatod a Riportok oldalon</li>
+                    <li><strong>Tiltakozás joga:</strong> a hozzájárulás bármikor visszavonható a fiók törlésével</li>
+                </ul>
+
+                <h5 class="mt-4">7. Sütik (cookie-k)</h5>
+                <p>Az alkalmazás kizárólag a bejelentkezési munkamenethez szükséges session cookie-t használ. Ez a cookie a böngésző bezárásakor törlődik. Harmadik féltől származó, nyomkövető vagy reklám célú cookie-t nem alkalmazunk.</p>
+
+                <h5 class="mt-4">8. Jogorvoslat</h5>
+                <p>Adatkezeléssel kapcsolatos panasszal a Nemzeti Adatvédelmi és Információszabadság Hatósághoz (NAIH) fordulhatsz: <a href="https://www.naih.hu" target="_blank">naih.hu</a></p>
+
+                <p class="text-muted mt-4 small">Utolsó frissítés: 2026. május 6.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
