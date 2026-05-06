@@ -12,7 +12,7 @@ if os.environ.get("RAILWAY_ENVIRONMENT") is None:
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-app.secret_key = 'koltsegvetes_secret_key'
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
 
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""),
@@ -312,10 +312,20 @@ def transactions():
         amount = float(request.form['amount'])
         if valid_items:
             amount = sum(a for _, a, _ in valid_items)
+        wallet_id = request.form['wallet_id']
+        cat_id = request.form['category_id']
+        if not conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone():
+            conn.close()
+            flash('Érvénytelen tárca.', 'danger')
+            return redirect(url_for('transactions'))
+        if cat_id and not conn.execute("SELECT id FROM categories WHERE id=? AND user_id=?", (cat_id, uid)).fetchone():
+            conn.close()
+            flash('Érvénytelen kategória.', 'danger')
+            return redirect(url_for('transactions'))
         cursor = conn.execute(
             "INSERT INTO transactions (amount, description, category_id, type, date, wallet_id) VALUES (?, ?, ?, ?, ?, ?)",
-            (amount, request.form['description'], request.form['category_id'],
-             request.form['type'], request.form['date'], request.form['wallet_id']))
+            (amount, request.form['description'], cat_id,
+             request.form['type'], request.form['date'], wallet_id))
         tx_id = cursor.lastrowid
         for desc, amt, cat_id in valid_items:
             conn.execute(
@@ -403,10 +413,20 @@ def edit_transaction(id):
         amount = float(request.form['amount'])
         if valid_items:
             amount = sum(a for _, a, _ in valid_items)
+        wallet_id = request.form['wallet_id']
+        cat_id = request.form['category_id']
+        if not conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone():
+            conn.close()
+            flash('Érvénytelen tárca.', 'danger')
+            return redirect(url_for('transactions'))
+        if cat_id and not conn.execute("SELECT id FROM categories WHERE id=? AND user_id=?", (cat_id, uid)).fetchone():
+            conn.close()
+            flash('Érvénytelen kategória.', 'danger')
+            return redirect(url_for('transactions'))
         conn.execute(
             "UPDATE transactions SET amount=?, description=?, category_id=?, type=?, date=?, wallet_id=? WHERE id=?",
-            (amount, request.form['description'], request.form['category_id'],
-             request.form['type'], request.form['date'], request.form['wallet_id'], id))
+            (amount, request.form['description'], cat_id,
+             request.form['type'], request.form['date'], wallet_id, id))
         conn.execute("DELETE FROM transaction_items WHERE transaction_id=?", (id,))
         for desc, amt, cat_id in valid_items:
             conn.execute(
@@ -564,7 +584,10 @@ def transfers():
     if request.method == 'POST':
         from_id = int(request.form['from_wallet_id'])
         to_id = int(request.form['to_wallet_id'])
-        if from_id == to_id:
+        if not conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (from_id, uid)).fetchone() or \
+           not conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (to_id, uid)).fetchone():
+            flash('Érvénytelen tárca.', 'danger')
+        elif from_id == to_id:
             flash('A forrás és a cél tárca nem lehet ugyanaz.', 'danger')
         else:
             conn.execute(
