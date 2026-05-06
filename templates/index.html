@@ -61,6 +61,32 @@
 </div>
 {% endif %}
 
+{% if budget_warnings %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header text-warning fw-bold"><i class="bi bi-exclamation-triangle"></i> Keret figyelmeztetések – aktuális hónap</div>
+    <div class="card-body pb-2">
+        {% for b in budget_warnings %}
+        {% set pct = [[(b.spent / b.monthly_limit * 100)|int, 0]|max, 100]|min %}
+        <div class="mb-3">
+            <div class="d-flex justify-content-between small mb-1">
+                <span>{{ b.name }}</span>
+                <span class="{{ 'text-danger fw-bold' if pct >= 100 else 'text-warning' }}">
+                    {{ "%.0f"|format(b.spent) }} / {{ "%.0f"|format(b.monthly_limit) }} Ft ({{ pct }}%)
+                </span>
+            </div>
+            <div class="progress" style="height:8px;">
+                <div class="progress-bar {{ 'bg-danger' if pct >= 100 else 'bg-warning' }}"
+                     style="width:{{ pct }}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
+        <a href="{{ url_for('budgets') }}" class="btn btn-sm btn-outline-secondary mt-1">
+            <i class="bi bi-bullseye"></i> Keretek kezelése
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <div class="card shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-clock-history"></i> Legutóbbi 10 tranzakció</span>

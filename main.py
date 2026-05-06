@@ -158,6 +158,13 @@ def init_db():
         amount REAL NOT NULL,
         FOREIGN KEY (transaction_id) REFERENCES transactions(id))''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
+        category_id INTEGER REFERENCES categories(id),
+        monthly_limit REAL NOT NULL,
+        UNIQUE(user_id, category_id))''')
+
     # Migrations
     try:
         c.execute("ALTER TABLE wallets ADD COLUMN initial_balance REAL DEFAULT 0")
@@ -375,11 +382,23 @@ def index():
         {'id': w['id'], 'name': w['name'], 'balance': wallet_balance(conn, w['id'])}
         for w in wallets
     ]
+    current_month = datetime.today().strftime('%Y-%m')
+    budget_warnings = conn.execute('''
+        SELECT c.name, b.monthly_limit, COALESCE(SUM(t.amount), 0) as spent
+        FROM budgets b
+        JOIN categories c ON b.category_id = c.id
+        LEFT JOIN transactions t ON t.category_id = b.category_id
+            AND t.type='expense' AND strftime('%Y-%m', t.date)=?
+            AND t.wallet_id IN (SELECT id FROM wallets WHERE user_id=?)
+        WHERE b.user_id=?
+        GROUP BY b.id HAVING spent >= b.monthly_limit * 0.7
+        ORDER BY (spent / b.monthly_limit) DESC''',
+        (current_month, uid, uid)).fetchall()
     conn.close()
     return render_template('index.html',
         balance=balance, income=income, expense=expense,
         transactions=recent, wallets=wallets, active_wallet=active,
-        wallet_balances=wallet_balances)
+        wallet_balances=wallet_balances, budget_warnings=budget_warnings)
 
 
 # --- Transactions ---
@@ -431,31 +450,49 @@ def transactions():
         flash('Tranzakció sikeresen hozzáadva!', 'success')
         return redirect(url_for('transactions', wallet=request.form['wallet_id']))
 
-    if active == 'all':
-        all_transactions = conn.execute('''
-            SELECT t.*, c.name as category_name, w.name as wallet_name,
+    q = request.args.get('q', '').strip()
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    filter_type = request.args.get('filter_type', '')
+    filter_cat = request.args.get('category_id', '')
+
+    sql = '''SELECT t.*, c.name as category_name, w.name as wallet_name,
                    (SELECT COUNT(*) FROM transaction_items WHERE transaction_id = t.id) as item_count
             FROM transactions t
             LEFT JOIN categories c ON t.category_id = c.id
             JOIN wallets w ON t.wallet_id = w.id
-            WHERE w.user_id=?
-            ORDER BY t.date DESC''', (uid,)).fetchall()
-    else:
-        all_transactions = conn.execute('''
-            SELECT t.*, c.name as category_name, w.name as wallet_name,
-                   (SELECT COUNT(*) FROM transaction_items WHERE transaction_id = t.id) as item_count
-            FROM transactions t
-            LEFT JOIN categories c ON t.category_id = c.id
-            JOIN wallets w ON t.wallet_id = w.id
-            WHERE t.wallet_id=? AND w.user_id=?
-            ORDER BY t.date DESC''', (active, uid)).fetchall()
+            WHERE w.user_id=?'''
+    params = [uid]
+    if active != 'all':
+        sql += ' AND t.wallet_id=?'
+        params.append(active)
+    if q:
+        sql += ' AND t.description LIKE ?'
+        params.append(f'%{q}%')
+    if date_from:
+        sql += ' AND t.date >= ?'
+        params.append(date_from)
+    if date_to:
+        sql += ' AND t.date <= ?'
+        params.append(date_to)
+    if filter_type in ('income', 'expense'):
+        sql += ' AND t.type=?'
+        params.append(filter_type)
+    if filter_cat:
+        sql += ' AND t.category_id=?'
+        params.append(filter_cat)
+    sql += ' ORDER BY t.date DESC'
+    all_transactions = conn.execute(sql, params).fetchall()
+    is_filtered = any([q, date_from, date_to, filter_type, filter_cat])
 
     categories = conn.execute("SELECT * FROM categories WHERE user_id=? ORDER BY type, name", (uid,)).fetchall()
     conn.close()
     today = datetime.today().strftime('%Y-%m-%d')
     return render_template('transactions.html',
         transactions=all_transactions, categories=categories, today=today,
-        wallets=wallets, active_wallet=active)
+        wallets=wallets, active_wallet=active,
+        q=q, date_from=date_from, date_to=date_to,
+        filter_type=filter_type, filter_cat=filter_cat, is_filtered=is_filtered)
 
 
 @app.route('/transactions/<int:id>')
@@ -760,6 +797,61 @@ def delete_category(id):
     conn.close()
     flash('Kategória törölve!', 'info')
     return redirect(url_for('categories'))
+
+
+# --- Budgets ---
+
+@app.route('/budgets', methods=['GET', 'POST'])
+@login_required
+def budgets():
+    conn = get_db()
+    uid = current_user.id
+    if request.method == 'POST':
+        cat_id = request.form['category_id']
+        limit = float(request.form['monthly_limit'])
+        if not conn.execute("SELECT id FROM categories WHERE id=? AND user_id=?", (cat_id, uid)).fetchone():
+            conn.close()
+            flash('Érvénytelen kategória.', 'danger')
+            return redirect(url_for('budgets'))
+        existing = conn.execute("SELECT id FROM budgets WHERE user_id=? AND category_id=?", (uid, cat_id)).fetchone()
+        if existing:
+            conn.execute("UPDATE budgets SET monthly_limit=? WHERE id=?", (limit, existing['id']))
+        else:
+            conn.execute("INSERT INTO budgets (user_id, category_id, monthly_limit) VALUES (?, ?, ?)", (uid, cat_id, limit))
+        conn.commit()
+        conn.close()
+        flash('Keret mentve!', 'success')
+        return redirect(url_for('budgets'))
+
+    current_month = datetime.today().strftime('%Y-%m')
+    budget_list = conn.execute('''
+        SELECT b.id, b.monthly_limit, b.category_id, c.name as cat_name,
+               COALESCE(SUM(t.amount), 0) as spent
+        FROM budgets b
+        JOIN categories c ON b.category_id = c.id
+        LEFT JOIN transactions t ON t.category_id = b.category_id
+            AND t.type='expense' AND strftime('%Y-%m', t.date)=?
+            AND t.wallet_id IN (SELECT id FROM wallets WHERE user_id=?)
+        WHERE b.user_id=?
+        GROUP BY b.id ORDER BY c.name''', (current_month, uid, uid)).fetchall()
+    free_cats = conn.execute('''
+        SELECT * FROM categories WHERE user_id=? AND type='expense'
+        AND id NOT IN (SELECT category_id FROM budgets WHERE user_id=?)
+        ORDER BY name''', (uid, uid)).fetchall()
+    conn.close()
+    return render_template('budgets.html', budget_list=budget_list,
+                           free_cats=free_cats, current_month=current_month)
+
+
+@app.route('/budgets/delete/<int:id>', methods=['POST'])
+@login_required
+def delete_budget(id):
+    conn = get_db()
+    conn.execute("DELETE FROM budgets WHERE id=? AND user_id=?", (id, current_user.id))
+    conn.commit()
+    conn.close()
+    flash('Keret törölve!', 'info')
+    return redirect(url_for('budgets'))
 
 
 # --- Reports ---

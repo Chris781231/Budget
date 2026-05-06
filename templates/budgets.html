@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-bullseye"></i> Havi keretek</h2>
+
+<div class="row">
+    <div class="col-lg-8">
+        {% if budget_list %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-bold">
+                Aktuális hónap: {{ current_month }}
+            </div>
+            <div class="card-body">
+                {% for b in budget_list %}
+                {% set pct = [[(b.spent / b.monthly_limit * 100)|int, 0]|max, 100]|min %}
+                {% set bar_class = 'bg-danger' if pct >= 100 else ('bg-warning' if pct >= 70 else 'bg-success') %}
+                {% set text_class = 'text-danger fw-bold' if pct >= 100 else ('text-warning' if pct >= 70 else 'text-success') %}
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-bold">{{ b.cat_name }}</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="{{ text_class }} small">
+                                {{ "%.0f"|format(b.spent) }} / {{ "%.0f"|format(b.monthly_limit) }} Ft &nbsp;({{ pct }}%)
+                            </span>
+                            <form method="POST" action="{{ url_for('delete_budget', id=b.id) }}" class="d-inline"
+                                  onsubmit="return confirm('Törlöd a keretet?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="progress" style="height:12px;">
+                        <div class="progress-bar {{ bar_class }}" style="width:{{ pct }}%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted mt-1">
+                        <span>Elköltve: {{ "%.0f"|format(b.spent) }} Ft</span>
+                        <span>Marad: {{ "%.0f"|format([b.monthly_limit - b.spent, 0]|max) }} Ft</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Még nincs beállított havi keret. Adj hozzá egyet jobbra!
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header"><i class="bi bi-plus-circle"></i> Keret hozzáadása / módosítása</div>
+            <div class="card-body">
+                {% if free_cats or budget_list %}
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label">Kategória</label>
+                        <select name="category_id" class="form-select" required>
+                            <option value="">-- Válassz --</option>
+                            {% for c in free_cats %}
+                            <option value="{{ c.id }}">{{ c.name }} (új)</option>
+                            {% endfor %}
+                            {% for b in budget_list %}
+                            <option value="{{ b.category_id }}">{{ b.cat_name }} (módosítás)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Havi limit (Ft)</label>
+                        <input type="number" name="monthly_limit" class="form-control"
+                               min="1" step="1" required placeholder="Pl. 50000">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check"></i> Mentés
+                    </button>
+                </form>
+                {% else %}
+                <p class="text-muted small">Minden kiadás kategóriához van már keret beállítva.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+            <div class="card-body small text-muted">
+                <i class="bi bi-info-circle"></i>
+                A progress bar színe:<br>
+                <span class="text-success">&#9632;</span> Zöld: 70% alatt &nbsp;
+                <span class="text-warning">&#9632;</span> Sárga: 70–99% &nbsp;
+                <span class="text-danger">&#9632;</span> Piros: túllépve
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

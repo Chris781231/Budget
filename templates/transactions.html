@@ -17,6 +17,61 @@
     {% endfor %}
 </ul>
 
+<div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-funnel"></i> Szűrés</span>
+        {% if is_filtered %}
+        <span class="badge bg-primary">Aktív szűrő</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <input type="hidden" name="wallet" value="{{ active_wallet if active_wallet != 'all' else 'all' }}">
+            <div class="col-md-3">
+                <input type="text" name="q" class="form-control form-control-sm"
+                       placeholder="Keresés leírásban..." value="{{ q }}">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="date_from" class="form-control form-control-sm"
+                       value="{{ date_from }}" title="Dátumtól">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="date_to" class="form-control form-control-sm"
+                       value="{{ date_to }}" title="Dátumig">
+            </div>
+            <div class="col-md-2">
+                <select name="filter_type" class="form-select form-select-sm">
+                    <option value="">Minden típus</option>
+                    <option value="expense" {{ 'selected' if filter_type == 'expense' }}>Kiadás</option>
+                    <option value="income" {{ 'selected' if filter_type == 'income' }}>Bevétel</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="category_id" class="form-select form-select-sm">
+                    <option value="">Minden kategória</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {{ 'selected' if filter_cat == c.id|string }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-primary btn-sm" title="Szűrés">
+                    <i class="bi bi-search"></i>
+                </button>
+                {% if is_filtered %}
+                <a href="?wallet={{ active_wallet if active_wallet != 'all' else 'all' }}"
+                   class="btn btn-outline-secondary btn-sm" title="Szűrők törlése">
+                    <i class="bi bi-x"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+        {% if is_filtered %}
+        <div class="mt-2 text-muted small">{{ transactions|length }} találat</div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="card shadow-sm mb-4">
     <div class="card-header"><i class="bi bi-plus-circle"></i> Új tranzakció hozzáadása</div>
     <div class="card-body">
