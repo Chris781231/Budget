@@ -709,6 +709,97 @@ def reports():
                            wallets=wallets, active_wallet=active)
 
 
+# --- Receipt Scanner ---
+
+@app.route('/scan-receipt', methods=['GET', 'POST'])
+@login_required
+def scan_receipt():
+    conn = get_db()
+    uid = current_user.id
+    wallets = conn.execute("SELECT * FROM wallets WHERE user_id=? ORDER BY sort_order", (uid,)).fetchall()
+    categories = conn.execute(
+        "SELECT * FROM categories WHERE user_id=? AND type='expense' ORDER BY name", (uid,)).fetchall()
+    conn.close()
+    today = datetime.today().strftime('%Y-%m-%d')
+
+    if request.method == 'POST':
+        files = request.files.getlist('receipt_images')
+        if not files or all(f.filename == '' for f in files):
+            flash('Legalább egy képet tölts fel!', 'danger')
+            return render_template('scan_receipt.html', wallets=wallets, categories=categories, today=today)
+
+        images = []
+        for f in files:
+            if f.filename:
+                images.append((f.read(), f.content_type or 'image/jpeg'))
+
+        try:
+            from receipt_scanner import scan_receipt_images
+            result = scan_receipt_images(images)
+        except Exception as e:
+            flash(f'Hiba a blokk beolvasásakor: {e}', 'danger')
+            return render_template('scan_receipt.html', wallets=wallets, categories=categories, today=today)
+
+        items = result.get('tetelek', [])
+        vegosszeg = result.get('vegosszeg', 0) or 0
+        items_sum = sum(i.get('amount', 0) for i in items)
+        mismatch = abs(items_sum - vegosszeg) > 1 if vegosszeg else False
+        selected_wallet = request.form.get('wallet_id')
+
+        return render_template('scan_receipt.html',
+            wallets=wallets, categories=categories, today=today,
+            scan_result=result, items=items, vegosszeg=vegosszeg,
+            items_sum=items_sum, mismatch=mismatch,
+            selected_wallet=int(selected_wallet) if selected_wallet else None)
+
+    return render_template('scan_receipt.html', wallets=wallets, categories=categories, today=today)
+
+
+@app.route('/scan-receipt/save', methods=['POST'])
+@login_required
+def save_receipt():
+    conn = get_db()
+    uid = current_user.id
+    wallet_id = int(request.form['wallet_id'])
+    w = conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone()
+    if not w:
+        conn.close()
+        flash('Érvénytelen tárca.', 'danger')
+        return redirect(url_for('scan_receipt'))
+
+    items_desc = request.form.getlist('item_description')
+    items_amount = request.form.getlist('item_amount')
+    items_cat = request.form.getlist('item_category_id')
+
+    valid_items = []
+    for desc, amt, cat in zip(items_desc, items_amount, items_cat):
+        desc = desc.strip()
+        try:
+            amt = float(amt)
+        except (ValueError, TypeError):
+            continue
+        if desc and amt > 0:
+            valid_items.append((desc, amt, int(cat) if cat else None))
+
+    total = sum(a for _, a, _ in valid_items) if valid_items else 0
+    cat_id = request.form.get('category_id') or None
+
+    cursor = conn.execute(
+        "INSERT INTO transactions (amount, description, category_id, type, date, wallet_id) VALUES (?, ?, ?, 'expense', ?, ?)",
+        (total, request.form.get('description', ''), cat_id, request.form['date'], wallet_id))
+    tx_id = cursor.lastrowid
+
+    for desc, amt, cat_id in valid_items:
+        conn.execute(
+            "INSERT INTO transaction_items (transaction_id, description, amount, category_id) VALUES (?, ?, ?, ?)",
+            (tx_id, desc, amt, cat_id))
+
+    conn.commit()
+    conn.close()
+    flash('Blokk sikeresen mentve!', 'success')
+    return redirect(url_for('transactions'))
+
+
 init_db()
 
 if __name__ == '__main__':

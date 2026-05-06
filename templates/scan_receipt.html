@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center mb-3 gap-2">
+    <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Vissza
+    </a>
+    <h2 class="mb-0">Blokkfotó beolvasása</h2>
+</div>
+
+{% if not scan_result %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tárca</label>
+                    <select name="wallet_id" class="form-select" required>
+                        {% for w in wallets %}
+                        <option value="{{ w.id }}">{{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Blokkfotók</label>
+                    <input type="file" name="receipt_images" class="form-control"
+                           accept="image/*" multiple required>
+                    <div class="form-text">Több képet is feltölthetsz (pl. hosszú blokknál).</div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary" id="scan-btn">
+                    <i class="bi bi-camera"></i> Beolvasás
+                </button>
+                <span id="scan-spinner" class="ms-2 d-none">
+                    <span class="spinner-border spinner-border-sm"></span> Beolvasás folyamatban...
+                </span>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% else %}
+
+{% if mismatch %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Figyelem:</strong> A tételek összege ({{ "%.0f"|format(items_sum) }} Ft)
+    eltér a blokkos végösszegtől ({{ "%.0f"|format(vegosszeg) }} Ft). Ellenőrizd a tételeket!
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="card-header"><i class="bi bi-receipt"></i> Beolvasott blokk áttekintése</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('save_receipt') }}">
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Tárca</label>
+                    <select name="wallet_id" class="form-select" required>
+                        {% for w in wallets %}
+                        <option value="{{ w.id }}" {{ 'selected' if w.id == selected_wallet }}>{{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Dátum</label>
+                    <input type="date" name="date" class="form-control" value="{{ today }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Leírás</label>
+                    <input type="text" name="description" class="form-control" placeholder="Pl. Lidl bevásárlás">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tranzakció kategóriája</label>
+                    <select name="category_id" class="form-select">
+                        <option value="">-- Kategória --</option>
+                        {% for c in categories %}
+                        <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center mb-2">
+                <strong class="me-2">Tételek</strong>
+                <span class="badge bg-secondary" id="item-count">{{ items|length }}</span>
+            </div>
+
+            <div id="items-container">
+                {% for item in items %}
+                <div class="row g-2 mb-2 item-row">
+                    <div class="col-md-5">
+                        <input type="text" name="item_description" class="form-control form-control-sm item-desc"
+                               placeholder="Tétel neve" value="{{ item.description }}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="item_amount" class="form-control form-control-sm item-amount"
+                               placeholder="Összeg" min="0" step="1" value="{{ "%.0f"|format(item.amount) }}">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="item_category_id" class="form-select form-select-sm item-cat">
+                            <option value="">-- Kategória --</option>
+                            {% for c in categories %}
+                            <option value="{{ c.id }}" {{ 'selected' if c.name == item.get('category_hint', '') }}>{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="d-flex align-items-center gap-2 mt-2 mb-3">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItemRow()">
+                    <i class="bi bi-plus"></i> Tétel hozzáadása
+                </button>
+                <span class="ms-auto">
+                    Összesen: <strong id="total-display">{{ "%.0f"|format(items_sum) }}</strong> Ft
+                    {% if vegosszeg %}
+                    <span class="text-muted ms-2">(blokkon: {{ "%.0f"|format(vegosszeg) }} Ft)</span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> Mentés</button>
+                <a href="{{ url_for('scan_receipt') }}" class="btn btn-outline-secondary ms-2">
+                    <i class="bi bi-camera"></i> Új beolvasás
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CATEGORIES = [
+    {% for c in categories %}{"id": {{ c.id }}, "name": "{{ c.name }}"},
+    {% endfor %}
+];
+
+function buildCategoryOptions(selectedId) {
+    let html = '<option value="">-- Kategória --</option>';
+    CATEGORIES.forEach(c => {
+        const sel = (selectedId && c.id == selectedId) ? 'selected' : '';
+        html += `<option value="${c.id}" ${sel}>${c.name}</option>`;
+    });
+    return html;
+}
+
+function addItemRow() {
+    const container = document.getElementById('items-container');
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2 item-row';
+    row.innerHTML = `
+        <div class="col-md-5">
+            <input type="text" name="item_description" class="form-control form-control-sm item-desc" placeholder="Tétel neve">
+        </div>
+        <div class="col-md-2">
+            <input type="number" name="item_amount" class="form-control form-control-sm item-amount" placeholder="Összeg" min="0" step="1">
+        </div>
+        <div class="col-md-3">
+            <select name="item_category_id" class="form-select form-select-sm item-cat">
+                ${buildCategoryOptions(null)}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>`;
+    container.appendChild(row);
+    row.querySelector('.item-desc').addEventListener('input', recalcTotal);
+    row.querySelector('.item-amount').addEventListener('input', recalcTotal);
+    updateItemCount();
+}
+
+function removeRow(btn) {
+    btn.closest('.item-row').remove();
+    recalcTotal();
+}
+
+function recalcTotal() {
+    let total = 0;
+    document.querySelectorAll('.item-row').forEach(row => {
+        total += parseFloat(row.querySelector('.item-amount').value) || 0;
+    });
+    const display = document.getElementById('total-display');
+    if (display) display.textContent = Math.round(total);
+    updateItemCount();
+}
+
+function updateItemCount() {
+    const badge = document.getElementById('item-count');
+    if (badge) badge.textContent = document.querySelectorAll('.item-row').length;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.item-row').forEach(row => {
+        row.querySelector('.item-desc')?.addEventListener('input', recalcTotal);
+        row.querySelector('.item-amount')?.addEventListener('input', recalcTotal);
+    });
+
+    const form = document.querySelector('form[enctype]');
+    if (form) {
+        form.addEventListener('submit', () => {
+            document.getElementById('scan-btn').disabled = true;
+            document.getElementById('scan-spinner').classList.remove('d-none');
+        });
+    }
+});
+</script>
+{% endblock %}
