@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center mb-3 gap-2">
+    <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Vissza
+    </a>
+    <h2 class="mb-0">Tranzakció szerkesztése</h2>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Típus</label>
+                    <select name="type" id="type-select" class="form-select" required onchange="filterCategories()">
+                        <option value="expense" {{ 'selected' if transaction.type == 'expense' }}>Kiadás</option>
+                        <option value="income" {{ 'selected' if transaction.type == 'income' }}>Bevétel</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Összeg (Ft)</label>
+                    <input type="number" name="amount" id="amount-field" class="form-control" required min="1"
+                           value="{{ "%.0f"|format(transaction.amount) }}"
+                           {{ 'readonly' if items }} {{ 'class="bg-light"' if items }}>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tárca</label>
+                    <select name="wallet_id" class="form-select" required>
+                        {% for w in wallets %}
+                        <option value="{{ w.id }}" {{ 'selected' if w.id == transaction.wallet_id }}>{{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Kategória</label>
+                    <select name="category_id" id="category-select" class="form-select">
+                        {% for c in categories %}
+                        <option value="{{ c.id }}" data-type="{{ c.type }}"
+                            {{ 'selected' if c.id == transaction.category_id }}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Dátum</label>
+                    <input type="date" name="date" class="form-control" value="{{ transaction.date }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Leírás</label>
+                    <input type="text" name="description" class="form-control" value="{{ transaction.description or '' }}">
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleItems()">
+                    <i class="bi bi-list-check"></i> Tételek
+                    {% if items %}<span class="badge bg-secondary">{{ items|length }}</span>{% endif %}
+                </button>
+            </div>
+
+            <div id="items-section" class="mt-3" style="{{ 'display:block' if items else 'display:none' }}">
+                <div class="d-flex align-items-center mb-2">
+                    <strong class="me-3">Tételek</strong>
+                    <small class="text-muted">Az összeg automatikusan számítódik a tételekből</small>
+                </div>
+                <div id="items-container">
+                    {% for item in items %}
+                    <div class="row g-2 mb-2 item-row">
+                        <div class="col-md-7">
+                            <input type="text" name="item_description" class="form-control form-control-sm item-desc"
+                                   placeholder="Tétel neve" value="{{ item.description }}">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" name="item_amount" class="form-control form-control-sm item-amount"
+                                   placeholder="Összeg" min="0" step="1" value="{{ "%.0f"|format(item.amount) }}">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addItemRow()">
+                    <i class="bi bi-plus"></i> Tétel hozzáadása
+                </button>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Mentés</button>
+                <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary ms-2">Mégse</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterCategories() {
+    const type = document.getElementById('type-select').value;
+    const select = document.getElementById('category-select');
+    let firstVisible = null;
+    let hasSelected = false;
+    for (const opt of select.options) {
+        const visible = opt.dataset.type === type;
+        opt.hidden = !visible;
+        if (visible && opt.selected) hasSelected = true;
+        if (visible && !firstVisible) firstVisible = opt;
+    }
+    if (!hasSelected && firstVisible) select.value = firstVisible.value;
+}
+document.addEventListener('DOMContentLoaded', () => {
+    filterCategories();
+    attachItemListeners();
+    recalcAmount();
+});
+
+function attachItemListeners() {
+    document.querySelectorAll('.item-row').forEach(row => {
+        row.querySelector('.item-desc').addEventListener('input', recalcAmount);
+        row.querySelector('.item-amount').addEventListener('input', recalcAmount);
+    });
+}
+
+function toggleItems() {
+    const section = document.getElementById('items-section');
+    const visible = section.style.display !== 'none';
+    section.style.display = visible ? 'none' : 'block';
+    if (!visible && document.querySelectorAll('.item-row').length === 0) {
+        addItemRow();
+    }
+    if (visible) {
+        document.querySelectorAll('.item-row').forEach(r => r.remove());
+        recalcAmount();
+    }
+}
+
+function addItemRow() {
+    const container = document.getElementById('items-container');
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2 item-row';
+    row.innerHTML = `
+        <div class="col-md-7">
+            <input type="text" name="item_description" class="form-control form-control-sm item-desc" placeholder="Tétel neve">
+        </div>
+        <div class="col-md-3">
+            <input type="number" name="item_amount" class="form-control form-control-sm item-amount" placeholder="Összeg" min="0" step="1">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>`;
+    container.appendChild(row);
+    row.querySelector('.item-desc').addEventListener('input', recalcAmount);
+    row.querySelector('.item-amount').addEventListener('input', recalcAmount);
+}
+
+function removeRow(btn) {
+    btn.closest('.item-row').remove();
+    recalcAmount();
+}
+
+function recalcAmount() {
+    const rows = document.querySelectorAll('.item-row');
+    let total = 0;
+    let hasItems = false;
+    rows.forEach(row => {
+        const amt = parseFloat(row.querySelector('.item-amount').value) || 0;
+        const desc = row.querySelector('.item-desc').value.trim();
+        if (desc || amt > 0) { total += amt; hasItems = true; }
+    });
+    const amountField = document.getElementById('amount-field');
+    if (hasItems) {
+        amountField.value = Math.round(total);
+        amountField.readOnly = true;
+        amountField.classList.add('bg-light');
+    } else {
+        amountField.readOnly = false;
+        amountField.classList.remove('bg-light');
+    }
+}
+</script>
+{% endblock %}

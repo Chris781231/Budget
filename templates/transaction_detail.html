@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center mb-3 gap-2">
+    <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Vissza
+    </a>
+    <h2 class="mb-0">Tranzakció részletei</h2>
+    <a href="{{ url_for('edit_transaction', id=transaction.id) }}" class="btn btn-outline-primary btn-sm ms-auto">
+        <i class="bi bi-pencil"></i> Szerkesztés
+    </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="text-muted small">Típus</div>
+                <span class="badge {{ 'bg-success' if transaction.type == 'income' else 'bg-danger' }} fs-6">
+                    {{ 'Bevétel' if transaction.type == 'income' else 'Kiadás' }}
+                </span>
+            </div>
+            <div class="col-md-3">
+                <div class="text-muted small">Összeg</div>
+                <div class="fw-bold fs-5 {{ 'text-success' if transaction.type == 'income' else 'text-danger' }}">
+                    {{ '+' if transaction.type == 'income' else '-' }}{{ "%.0f"|format(transaction.amount) }} Ft
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-muted small">Dátum</div>
+                <div>{{ transaction.date }}</div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-muted small">Tárca</div>
+                <div>{{ transaction.wallet_name or '-' }}</div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-muted small">Kategória</div>
+                <div>{{ transaction.category_name or '-' }}</div>
+            </div>
+            <div class="col-md-9">
+                <div class="text-muted small">Leírás</div>
+                <div>{{ transaction.description or '-' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if items %}
+<div class="card shadow-sm">
+    <div class="card-header"><i class="bi bi-list-ul"></i> Tételek</div>
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Tétel neve</th>
+                    <th class="text-end">Összeg</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.description }}</td>
+                    <td class="text-end">{{ "%.0f"|format(item.amount) }} Ft</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+                <tr>
+                    <th>Összesen</th>
+                    <th class="text-end">{{ "%.0f"|format(items|sum(attribute='amount')) }} Ft</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="text-muted">Ehhez a tranzakcióhoz nincsenek tételek.</div>
+{% endif %}
+{% endblock %}

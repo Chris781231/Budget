@@ -150,6 +150,13 @@ def init_db():
         FOREIGN KEY (from_wallet_id) REFERENCES wallets(id),
         FOREIGN KEY (to_wallet_id) REFERENCES wallets(id))''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS transaction_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        transaction_id INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id))''')
+
     c.execute("SELECT COUNT(*) FROM categories")
     if c.fetchone()[0] == 0:
         c.executemany("INSERT INTO categories (name, type) VALUES (?, ?)", [
@@ -261,24 +268,45 @@ def transactions():
     active = get_active_wallet(wallets)
 
     if request.method == 'POST':
-        conn.execute(
+        items_desc = request.form.getlist('item_description')
+        items_amount = request.form.getlist('item_amount')
+        valid_items = []
+        for desc, amt in zip(items_desc, items_amount):
+            desc = desc.strip()
+            try:
+                amt = float(amt)
+            except (ValueError, TypeError):
+                continue
+            if desc and amt > 0:
+                valid_items.append((desc, amt))
+        amount = float(request.form['amount'])
+        if valid_items:
+            amount = sum(a for _, a in valid_items)
+        cursor = conn.execute(
             "INSERT INTO transactions (amount, description, category_id, type, date, wallet_id) VALUES (?, ?, ?, ?, ?, ?)",
-            (request.form['amount'], request.form['description'], request.form['category_id'],
+            (amount, request.form['description'], request.form['category_id'],
              request.form['type'], request.form['date'], request.form['wallet_id']))
+        tx_id = cursor.lastrowid
+        for desc, amt in valid_items:
+            conn.execute(
+                "INSERT INTO transaction_items (transaction_id, description, amount) VALUES (?, ?, ?)",
+                (tx_id, desc, amt))
         conn.commit()
         flash('Tranzakció sikeresen hozzáadva!', 'success')
         return redirect(url_for('transactions', wallet=request.form['wallet_id']))
 
     if active == 'all':
         all_transactions = conn.execute('''
-            SELECT t.*, c.name as category_name, w.name as wallet_name
+            SELECT t.*, c.name as category_name, w.name as wallet_name,
+                   (SELECT COUNT(*) FROM transaction_items WHERE transaction_id = t.id) as item_count
             FROM transactions t
             LEFT JOIN categories c ON t.category_id = c.id
             LEFT JOIN wallets w ON t.wallet_id = w.id
             ORDER BY t.date DESC''').fetchall()
     else:
         all_transactions = conn.execute('''
-            SELECT t.*, c.name as category_name, w.name as wallet_name
+            SELECT t.*, c.name as category_name, w.name as wallet_name,
+                   (SELECT COUNT(*) FROM transaction_items WHERE transaction_id = t.id) as item_count
             FROM transactions t
             LEFT JOIN categories c ON t.category_id = c.id
             LEFT JOIN wallets w ON t.wallet_id = w.id
@@ -293,10 +321,79 @@ def transactions():
         wallets=wallets, active_wallet=active)
 
 
+@app.route('/transactions/<int:id>')
+@login_required
+def transaction_detail(id):
+    conn = get_db()
+    t = conn.execute('''
+        SELECT t.*, c.name as category_name, w.name as wallet_name
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN wallets w ON t.wallet_id = w.id
+        WHERE t.id = ?''', (id,)).fetchone()
+    if not t:
+        conn.close()
+        flash('Tranzakció nem található.', 'danger')
+        return redirect(url_for('transactions'))
+    items = conn.execute(
+        "SELECT * FROM transaction_items WHERE transaction_id=? ORDER BY id",
+        (id,)).fetchall()
+    conn.close()
+    return render_template('transaction_detail.html', transaction=t, items=items)
+
+
+@app.route('/transactions/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_transaction(id):
+    conn = get_db()
+    if request.method == 'POST':
+        items_desc = request.form.getlist('item_description')
+        items_amount = request.form.getlist('item_amount')
+        valid_items = []
+        for desc, amt in zip(items_desc, items_amount):
+            desc = desc.strip()
+            try:
+                amt = float(amt)
+            except (ValueError, TypeError):
+                continue
+            if desc and amt > 0:
+                valid_items.append((desc, amt))
+        amount = float(request.form['amount'])
+        if valid_items:
+            amount = sum(a for _, a in valid_items)
+        conn.execute(
+            "UPDATE transactions SET amount=?, description=?, category_id=?, type=?, date=?, wallet_id=? WHERE id=?",
+            (amount, request.form['description'], request.form['category_id'],
+             request.form['type'], request.form['date'], request.form['wallet_id'], id))
+        conn.execute("DELETE FROM transaction_items WHERE transaction_id=?", (id,))
+        for desc, amt in valid_items:
+            conn.execute(
+                "INSERT INTO transaction_items (transaction_id, description, amount) VALUES (?, ?, ?)",
+                (id, desc, amt))
+        conn.commit()
+        conn.close()
+        flash('Tranzakció módosítva!', 'success')
+        return redirect(url_for('transactions'))
+    t = conn.execute("SELECT * FROM transactions WHERE id=?", (id,)).fetchone()
+    if not t:
+        conn.close()
+        flash('Tranzakció nem található.', 'danger')
+        return redirect(url_for('transactions'))
+    items = conn.execute(
+        "SELECT * FROM transaction_items WHERE transaction_id=? ORDER BY id",
+        (id,)).fetchall()
+    categories = conn.execute("SELECT * FROM categories ORDER BY type, name").fetchall()
+    wallets_list = conn.execute("SELECT * FROM wallets ORDER BY sort_order").fetchall()
+    conn.close()
+    return render_template('transaction_edit.html', transaction=t, items=items,
+                           categories=categories, wallets=wallets_list)
+
+
 @app.route('/transactions/delete/<int:id>')
 @login_required
 def delete_transaction(id):
     conn = get_db()
+    conn.execute("DELETE FROM transaction_items WHERE transaction_id=?", (id,))
     conn.execute("DELETE FROM transactions WHERE id=?", (id,))
     conn.commit()
     conn.close()
