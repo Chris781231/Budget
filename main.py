@@ -25,7 +25,7 @@ app.register_blueprint(google_bp, url_prefix="/login")
 login_manager = LoginManager(app)
 login_manager.login_view = "login_page"
 
-DATABASE = 'koltsegvetes.db'
+DATABASE = '/data/koltsegvetes.db' if os.environ.get('RAILWAY_ENVIRONMENT') else 'koltsegvetes.db'
 
 
 class User(UserMixin):
