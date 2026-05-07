@@ -2,14 +2,14 @@
 {% block content %}
 <h2 class="mb-3">Tranzakciók</h2>
 
-<ul class="nav nav-pills mb-4">
-    <li class="nav-item">
+<ul class="nav nav-pills mb-4 flex-nowrap overflow-auto pb-1">
+    <li class="nav-item flex-shrink-0">
         <a class="nav-link {% if active_wallet == 'all' %}active{% endif %}" href="?wallet=all">
             <i class="bi bi-collection"></i> Összes
         </a>
     </li>
     {% for w in wallets %}
-    <li class="nav-item">
+    <li class="nav-item flex-shrink-0">
         <a class="nav-link {% if active_wallet == w.id %}active{% endif %}" href="?wallet={{ w.id }}">
             <i class="bi bi-wallet2"></i> {{ w.name }}
         </a>
@@ -19,11 +19,17 @@
 
 <div class="card shadow-sm mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-funnel"></i> Szűrés</span>
-        {% if is_filtered %}
-        <span class="badge bg-primary">Aktív szűrő</span>
-        {% endif %}
+        <span>
+            <i class="bi bi-funnel"></i> Szűrés
+            {% if is_filtered %}<span class="badge bg-primary ms-1">Aktív</span>{% endif %}
+        </span>
+        <button class="btn btn-sm btn-outline-secondary d-md-none" type="button"
+                data-bs-toggle="collapse" data-bs-target="#filter-collapse"
+                aria-expanded="{{ 'true' if is_filtered else 'false' }}">
+            <i class="bi bi-sliders"></i>
+        </button>
     </div>
+    <div class="{{ 'show ' if is_filtered else '' }}collapse d-md-block" id="filter-collapse">
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
             <input type="hidden" name="wallet" value="{{ active_wallet if active_wallet != 'all' else 'all' }}">
@@ -70,10 +76,19 @@
             {% if is_filtered %}{{ total }} találat{% endif %}
         </div>
     </div>
+    </div>
 </div>
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header"><i class="bi bi-plus-circle"></i> Új tranzakció hozzáadása</div>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-plus-circle"></i> Új tranzakció hozzáadása</span>
+        <button class="btn btn-sm btn-outline-secondary d-md-none" type="button"
+                data-bs-toggle="collapse" data-bs-target="#new-tx-collapse"
+                aria-expanded="false">
+            <i class="bi bi-plus"></i>
+        </button>
+    </div>
+    <div class="collapse d-md-block" id="new-tx-collapse">
     <div class="card-body">
         <form method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -139,19 +154,21 @@
             </div>
         </form>
     </div>
+    </div>
 </div>
 
 <div class="card shadow-sm">
     <div class="card-header"><i class="bi bi-list-ul"></i> Tranzakciók</div>
     <div class="card-body p-0">
+        <div class="table-responsive">
         <table class="table table-striped mb-0">
             <thead>
                 <tr>
                     <th>Dátum</th>
                     <th>Leírás</th>
-                    <th>Kategória</th>
-                    <th>Tárca</th>
-                    <th>Típus</th>
+                    <th class="d-none d-md-table-cell">Kategória</th>
+                    <th class="d-none d-md-table-cell">Tárca</th>
+                    <th class="d-none d-sm-table-cell">Típus</th>
                     <th class="text-end">Összeg</th>
                     <th></th>
                 </tr>
@@ -159,7 +176,7 @@
             <tbody>
                 {% for t in transactions %}
                 <tr>
-                    <td>{{ t.date }}</td>
+                    <td class="text-nowrap">{{ t.date }}</td>
                     <td>
                         {{ t.description or '-' }}
                         {% if t.item_count > 0 %}
@@ -168,14 +185,14 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td>{{ t.category_name or '-' }}</td>
-                    <td>{{ t.wallet_name or '-' }}</td>
-                    <td>
+                    <td class="d-none d-md-table-cell">{{ t.category_name or '-' }}</td>
+                    <td class="d-none d-md-table-cell">{{ t.wallet_name or '-' }}</td>
+                    <td class="d-none d-sm-table-cell">
                         <span class="badge {{ 'bg-success' if t.type == 'income' else 'bg-danger' }}">
                             {{ 'Bevétel' if t.type == 'income' else 'Kiadás' }}
                         </span>
                     </td>
-                    <td class="text-end fw-bold {{ 'text-success' if t.type == 'income' else 'text-danger' }}">
+                    <td class="text-end fw-bold text-nowrap {{ 'text-success' if t.type == 'income' else 'text-danger' }}">
                         {{ '+' if t.type == 'income' else '-' }}{{ "%.0f"|format(t.amount) }} Ft
                     </td>
                     <td class="text-nowrap">
@@ -199,6 +216,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
     {% if total_pages > 1 %}
     {% set base = '?wallet=' ~ active_wallet ~ '&q=' ~ q ~ '&date_from=' ~ date_from ~ '&date_to=' ~ date_to ~ '&filter_type=' ~ filter_type ~ '&category_id=' ~ filter_cat %}
