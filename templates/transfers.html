@@ -80,6 +80,16 @@
                                     title="Megtekintés">
                                 <i class="bi bi-eye"></i>
                             </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary edit-transfer-btn"
+                                    data-id="{{ t.id }}"
+                                    data-from-id="{{ t.from_wallet_id }}"
+                                    data-to-id="{{ t.to_wallet_id }}"
+                                    data-amount="{{ '%.0f'|format(t.amount) }}"
+                                    data-date="{{ t.date }}"
+                                    data-desc="{{ t.description or '' }}"
+                                    title="Szerkesztés">
+                                <i class="bi bi-pencil"></i>
+                            </button>
                             <form method="POST" action="/transfers/delete/{{ t.id }}" class="d-inline"
                                   onsubmit="return confirm('Biztosan törlöd ezt az átutalást?')">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -95,6 +105,57 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Átutalás szerkesztés modal -->
+<div class="modal fade" id="editTransferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil text-primary me-2"></i>Átutalás szerkesztése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editTransferForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Forrás tárca</label>
+                            <select name="from_wallet_id" id="et-from" class="form-select" required>
+                                {% for w in wallets %}
+                                <option value="{{ w.id }}">{{ w.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Cél tárca</label>
+                            <select name="to_wallet_id" id="et-to" class="form-select" required>
+                                {% for w in wallets %}
+                                <option value="{{ w.id }}">{{ w.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Összeg (Ft)</label>
+                            <input type="number" name="amount" id="et-amount" class="form-control" required min="1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Dátum</label>
+                            <input type="date" name="date" id="et-date" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Megjegyzés</label>
+                            <input type="text" name="description" id="et-desc" class="form-control" placeholder="Opcionális">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Mégse</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check me-1"></i>Mentés</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -155,6 +216,19 @@ document.getElementById('transferDetailModal').addEventListener('show.bs.modal',
     document.getElementById('td-to').textContent = btn.dataset.to;
     document.getElementById('td-amount').textContent = btn.dataset.amount + ' Ft';
     document.getElementById('td-desc').textContent = btn.dataset.desc;
+});
+
+document.querySelectorAll('.edit-transfer-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var id = this.dataset.id;
+        document.getElementById('et-from').value = this.dataset.fromId;
+        document.getElementById('et-to').value = this.dataset.toId;
+        document.getElementById('et-amount').value = this.dataset.amount;
+        document.getElementById('et-date').value = this.dataset.date;
+        document.getElementById('et-desc').value = this.dataset.desc;
+        document.getElementById('editTransferForm').action = '/transfers/edit/' + id;
+        new bootstrap.Modal(document.getElementById('editTransferModal')).show();
+    });
 });
 </script>
 {% endblock %}

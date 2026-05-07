@@ -1531,6 +1531,68 @@ def delete_category(id):
     return redirect(url_for('categories'))
 
 
+@app.route('/categories/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_category(id):
+    conn = get_db()
+    uid = current_user.id
+    cat = conn.execute("SELECT id FROM categories WHERE id=? AND user_id=?", (id, uid)).fetchone()
+    if not cat:
+        conn.close()
+        flash('Kategória nem található.', 'danger')
+        return redirect(url_for('categories'))
+    name = request.form.get('name', '').strip()
+    type_ = request.form.get('type', '')
+    if not name or type_ not in ('income', 'expense'):
+        conn.close()
+        flash('Érvénytelen adat.', 'danger')
+        return redirect(url_for('categories'))
+    conn.execute("UPDATE categories SET name=?, type=? WHERE id=?", (name, type_, id))
+    conn.commit()
+    conn.close()
+    flash('Kategória módosítva!', 'success')
+    return redirect(url_for('categories'))
+
+
+@app.route('/transfers/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_transfer(id):
+    conn = get_db()
+    uid = current_user.id
+    tr = conn.execute('''
+        SELECT tr.id FROM transfers tr JOIN wallets fw ON tr.from_wallet_id=fw.id
+        WHERE tr.id=? AND fw.user_id=?''', (id, uid)).fetchone()
+    if not tr:
+        conn.close()
+        flash('Átutalás nem található.', 'danger')
+        return redirect(url_for('transfers'))
+    try:
+        amount = float(request.form['amount'])
+        if amount <= 0:
+            raise ValueError
+    except (ValueError, KeyError):
+        conn.close()
+        flash('Érvénytelen összeg.', 'danger')
+        return redirect(url_for('transfers'))
+    from_wallet_id = request.form.get('from_wallet_id')
+    to_wallet_id = request.form.get('to_wallet_id')
+    date = request.form.get('date', '')
+    description = request.form.get('description', '').strip()
+    fw = conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (from_wallet_id, uid)).fetchone()
+    tw = conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (to_wallet_id, uid)).fetchone()
+    if not fw or not tw or from_wallet_id == to_wallet_id:
+        conn.close()
+        flash('Érvénytelen tárca.', 'danger')
+        return redirect(url_for('transfers'))
+    conn.execute(
+        "UPDATE transfers SET from_wallet_id=?, to_wallet_id=?, amount=?, date=?, description=? WHERE id=?",
+        (from_wallet_id, to_wallet_id, amount, date, description or None, id))
+    conn.commit()
+    conn.close()
+    flash('Átutalás módosítva!', 'success')
+    return redirect(url_for('transfers'))
+
+
 # --- Budgets ---
 
 @app.route('/budgets', methods=['GET', 'POST'])
