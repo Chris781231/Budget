@@ -27,7 +27,8 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
 csrf = CSRFProtect(app)
 
-BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '')
+MJ_APIKEY_PUBLIC = os.environ.get('MJ_APIKEY_PUBLIC', '')
+MJ_APIKEY_PRIVATE = os.environ.get('MJ_APIKEY_PRIVATE', '')
 
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""),
@@ -751,20 +752,23 @@ def forgot_password():
             conn.commit()
             reset_url = url_for('reset_password', token=token, _external=True)
             try:
+                from_email = os.environ.get('MJ_FROM_EMAIL', 'ligeti.karoly78@gmail.com')
                 resp = http_requests.post(
-                    "https://api.brevo.com/v3/smtp/email",
-                    headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
+                    "https://api.mailjet.com/v3.1/send",
+                    auth=(MJ_APIKEY_PUBLIC, MJ_APIKEY_PRIVATE),
                     json={
-                        "sender": {"name": "Költségvetés", "email": os.environ.get('BREVO_FROM_EMAIL', 'noreply@koltsegvetes.app')},
-                        "to": [{"email": email}],
-                        "subject": "Jelszó visszaállítás – Költségvetés",
-                        "textContent": f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
+                        "Messages": [{
+                            "From": {"Email": from_email, "Name": "Költségvetés"},
+                            "To": [{"Email": email}],
+                            "Subject": "Jelszó visszaállítás – Költségvetés",
+                            "TextPart": f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
+                        }]
                     },
                     timeout=10
                 )
                 resp.raise_for_status()
             except Exception as e:
-                app.logger.error(f"Brevo hiba: {e}")
+                app.logger.error(f"Mailjet hiba: {e}")
                 conn.close()
                 flash(f'Az email küldése sikertelen: {e}', 'danger')
 
