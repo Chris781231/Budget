@@ -122,48 +122,48 @@
                     <div class="row g-3 mb-3">
                         <div class="col-6 col-sm-3">
                             <label class="d-block h-100" style="cursor:pointer;">
-                                <input type="radio" name="theme" value="original" class="d-none" {{ 'checked' if t == 'original' }}>
-                                <div class="border rounded-3 overflow-hidden h-100 {{ 'border-primary border-2 shadow-sm' if t == 'original' }}">
+                                <input type="radio" name="theme" value="original" class="d-none theme-radio" {{ 'checked' if t == 'original' }}>
+                                <div class="theme-card border rounded-3 overflow-hidden h-100" data-color="#0d6efd">
                                     <div style="height:38px;background:#0d6efd;"></div>
                                     <div class="p-2 text-center" style="background:#f8f9fa;font-size:.8rem;">
                                         Eredeti<br>
-                                        <i class="bi bi-check-circle-fill text-primary" style="{{ '' if t == 'original' else 'opacity:0' }}"></i>
+                                        <i class="bi bi-check-circle-fill theme-check" style="color:#0d6efd;opacity:0;"></i>
                                     </div>
                                 </div>
                             </label>
                         </div>
                         <div class="col-6 col-sm-3">
                             <label class="d-block h-100" style="cursor:pointer;">
-                                <input type="radio" name="theme" value="blue" class="d-none" {{ 'checked' if t == 'blue' }}>
-                                <div class="border rounded-3 overflow-hidden h-100 {{ 'border-2 shadow-sm' if t == 'blue' }}" style="{{ 'border-color:#4A72A8!important;' if t == 'blue' }}">
+                                <input type="radio" name="theme" value="blue" class="d-none theme-radio" {{ 'checked' if t == 'blue' }}>
+                                <div class="theme-card border rounded-3 overflow-hidden h-100" data-color="#4A72A8">
                                     <div style="height:38px;background:#4A72A8;"></div>
                                     <div class="p-2 text-center" style="background:#F0F4FA;font-size:.8rem;">
                                         Kék pasztell<br>
-                                        <i class="bi bi-check-circle-fill" style="color:#4A72A8;{{ '' if t == 'blue' else 'opacity:0' }}"></i>
+                                        <i class="bi bi-check-circle-fill theme-check" style="color:#4A72A8;opacity:0;"></i>
                                     </div>
                                 </div>
                             </label>
                         </div>
                         <div class="col-6 col-sm-3">
                             <label class="d-block h-100" style="cursor:pointer;">
-                                <input type="radio" name="theme" value="green" class="d-none" {{ 'checked' if t == 'green' }}>
-                                <div class="border rounded-3 overflow-hidden h-100 {{ 'border-2 shadow-sm' if t == 'green' }}" style="{{ 'border-color:#3B7A6A!important;' if t == 'green' }}">
+                                <input type="radio" name="theme" value="green" class="d-none theme-radio" {{ 'checked' if t == 'green' }}>
+                                <div class="theme-card border rounded-3 overflow-hidden h-100" data-color="#3B7A6A">
                                     <div style="height:38px;background:#3B7A6A;"></div>
                                     <div class="p-2 text-center" style="background:#F4F7F4;font-size:.8rem;">
                                         Zöld-krém<br>
-                                        <i class="bi bi-check-circle-fill" style="color:#3B7A6A;{{ '' if t == 'green' else 'opacity:0' }}"></i>
+                                        <i class="bi bi-check-circle-fill theme-check" style="color:#3B7A6A;opacity:0;"></i>
                                     </div>
                                 </div>
                             </label>
                         </div>
                         <div class="col-6 col-sm-3">
                             <label class="d-block h-100" style="cursor:pointer;">
-                                <input type="radio" name="theme" value="lavender" class="d-none" {{ 'checked' if t == 'lavender' }}>
-                                <div class="border rounded-3 overflow-hidden h-100 {{ 'border-2 shadow-sm' if t == 'lavender' }}" style="{{ 'border-color:#6B5FA8!important;' if t == 'lavender' }}">
+                                <input type="radio" name="theme" value="lavender" class="d-none theme-radio" {{ 'checked' if t == 'lavender' }}>
+                                <div class="theme-card border rounded-3 overflow-hidden h-100" data-color="#6B5FA8">
                                     <div style="height:38px;background:#6B5FA8;"></div>
                                     <div class="p-2 text-center" style="background:#F4F3F9;font-size:.8rem;">
                                         Levendula<br>
-                                        <i class="bi bi-check-circle-fill" style="color:#6B5FA8;{{ '' if t == 'lavender' else 'opacity:0' }}"></i>
+                                        <i class="bi bi-check-circle-fill theme-check" style="color:#6B5FA8;opacity:0;"></i>
                                     </div>
                                 </div>
                             </label>
@@ -173,6 +173,27 @@
                         <i class="bi bi-check-lg"></i> Téma mentése
                     </button>
                 </form>
+                <script>
+                function syncThemeCards() {
+                    document.querySelectorAll('.theme-radio').forEach(function(r) {
+                        var card = r.closest('label').querySelector('.theme-card');
+                        var check = card.querySelector('.theme-check');
+                        if (r.checked) {
+                            card.style.boxShadow = '0 0 0 2px ' + card.dataset.color;
+                            card.style.borderColor = card.dataset.color;
+                            check.style.opacity = '1';
+                        } else {
+                            card.style.boxShadow = '';
+                            card.style.borderColor = '';
+                            check.style.opacity = '0';
+                        }
+                    });
+                }
+                document.querySelectorAll('.theme-radio').forEach(function(r) {
+                    r.addEventListener('change', syncThemeCards);
+                });
+                syncThemeCards();
+                </script>
             </div>
         </div>
 
