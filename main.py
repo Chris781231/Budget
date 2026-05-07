@@ -630,6 +630,26 @@ def admin_reset_link(uid):
     return redirect(url_for('admin_panel'))
 
 
+@app.route('/admin/scan-test', methods=['POST'])
+@login_required
+@admin_required
+def admin_scan_test():
+    from flask import jsonify
+    from receipt_scanner import scan_receipt_images
+    files = request.files.getlist('photos')
+    images = []
+    for f in files:
+        if f and f.filename:
+            images.append((f.read(), f.content_type or 'image/jpeg'))
+    if not images:
+        return jsonify({'error': 'Nincs kép feltöltve'}), 400
+    try:
+        result = scan_receipt_images(images, model="claude-haiku-4-5-20251001")
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/account/delete', methods=['POST'])
 @login_required
 def delete_account():
