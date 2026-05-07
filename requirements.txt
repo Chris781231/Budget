@@ -1,4 +1,5 @@
 anthropic
+Flask-Mail==0.10.0
 pillow==12.2.0
 pyotp==2.9.0
 qrcode==8.2

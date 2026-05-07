@@ -12,9 +12,11 @@ from flask_wtf.csrf import CSRFProtect
 import sqlite3
 import pyotp
 import qrcode
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
+import secrets
 from functools import wraps
 
 if os.environ.get("RAILWAY_ENVIRONMENT") is None:
@@ -24,6 +26,14 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
 csrf = CSRFProtect(app)
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_ADDRESS', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('GMAIL_ADDRESS', '')
+mail = Mail(app)
 
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""),
@@ -81,6 +91,7 @@ def enforce_2fa():
         'two_factor_verify', 'logout', 'static', 'login_page', 'privacy',
         'google.login', 'google.authorized',
         'github.login', 'github.authorized',
+        'forgot_password', 'reset_password',
     }
     if (current_user.is_authenticated
             and session.get('needs_2fa')
@@ -359,6 +370,8 @@ def init_db():
         "totp_secret TEXT",
         "totp_enabled INTEGER DEFAULT 0",
         "password_hash TEXT",
+        "reset_token TEXT",
+        "reset_token_expires TEXT",
     ]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col}")
@@ -726,6 +739,72 @@ def set_password():
     conn.close()
     flash('Jelszó sikeresen beállítva!', 'success')
     return redirect(url_for('account'))
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        conn = get_db()
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        if row and row['password_hash']:
+            token = secrets.token_urlsafe(32)
+            expires = (datetime.now() + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
+            conn.execute("UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?",
+                         (token, expires, row['id']))
+            conn.commit()
+            reset_url = url_for('reset_password', token=token, _external=True)
+            try:
+                msg = Message(
+                    subject='Jelszó visszaállítás – Költségvetés',
+                    recipients=[email],
+                    body=f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
+                )
+                mail.send(msg)
+            except Exception:
+                conn.close()
+                flash('Az email küldése sikertelen. Ellenőrizd a szerver beállításait.', 'danger')
+                return render_template('forgot_password.html')
+        conn.close()
+        flash('Ha az email cím regisztrált és jelszavas fiókhoz tartozik, elküldtük a visszaállítási linket.', 'info')
+        return redirect(url_for('login_page'))
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM users WHERE reset_token=? AND reset_token_expires > ?",
+        (token, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    ).fetchone()
+    if not row:
+        conn.close()
+        flash('A visszaállítási link érvénytelen vagy lejárt.', 'danger')
+        return redirect(url_for('login_page'))
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm_password', '')
+        if len(password) < 8:
+            flash('A jelszónak legalább 8 karakter hosszúnak kell lennie.', 'danger')
+            return render_template('reset_password.html', token=token)
+        if password != confirm:
+            flash('A két jelszó nem egyezik.', 'danger')
+            return render_template('reset_password.html', token=token)
+        conn.execute(
+            "UPDATE users SET password_hash=?, reset_token=NULL, reset_token_expires=NULL WHERE id=?",
+            (generate_password_hash(password), row['id'])
+        )
+        conn.commit()
+        conn.close()
+        flash('Jelszó sikeresen visszaállítva! Jelentkezz be az új jelszavaddal.', 'success')
+        return redirect(url_for('login_page'))
+    conn.close()
+    return render_template('reset_password.html', token=token)
 
 
 @app.route('/login')
