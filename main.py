@@ -635,7 +635,8 @@ def admin_reset_link(uid):
 @admin_required
 def admin_scan_test():
     from flask import jsonify
-    from receipt_scanner import scan_receipt_images
+    import anthropic, base64 as b64mod, json as jsonmod, re as remod
+    from receipt_scanner import SCAN_PROMPT
     files = request.files.getlist('photos')
     images = []
     for f in files:
@@ -644,8 +645,24 @@ def admin_scan_test():
     if not images:
         return jsonify({'error': 'Nincs kép feltöltve'}), 400
     try:
-        result = scan_receipt_images(images, model="claude-haiku-4-5-20251001")
-        return jsonify(result)
+        client = anthropic.Anthropic()
+        content = []
+        for img_bytes, media_type in images:
+            if media_type not in ('image/jpeg', 'image/png', 'image/gif', 'image/webp'):
+                media_type = 'image/jpeg'
+            img_b64 = b64mod.standard_b64encode(img_bytes).decode('utf-8')
+            content.append({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": img_b64}})
+        content.append({"type": "text", "text": SCAN_PROMPT})
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            messages=[{"role": "user", "content": content}]
+        )
+        text = message.content[0].text.strip()
+        m = remod.search(r'\{.*\}', text, remod.DOTALL)
+        if m:
+            text = m.group(0)
+        return jsonify(jsonmod.loads(text))
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
