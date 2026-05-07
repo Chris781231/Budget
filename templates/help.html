@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-4 gap-3">
+            <div>
+                <h2 class="mb-0"><i class="bi bi-question-circle text-primary me-2"></i>Súgó</h2>
+                <p class="text-muted small mb-0">Minden funkcióhoz részletes leírás</p>
+            </div>
+        </div>
+
+        <div class="accordion shadow-sm" id="helpAccordion">
+
+            <!-- Kezdés -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#h1">
+                        <i class="bi bi-rocket-takeoff text-primary me-2"></i>Első lépések
+                    </button>
+                </h2>
+                <div id="h1" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <p>Az alkalmazás személyes pénzügyek nyilvántartására szolgál. Az alaplogika:</p>
+                        <ol>
+                            <li><strong>Tárcák létrehozása</strong> – add hozzá bankszámládat, készpénztárcád, stb. a nyitóegyenleggel együtt.</li>
+                            <li><strong>Kategóriák beállítása</strong> – hozz létre bevétel és kiadás kategóriákat (pl. Élelmiszer, Fizetés, Közlekedés).</li>
+                            <li><strong>Tranzakciók rögzítése</strong> – minden bevételt és kiadást vezess fel. Minél pontosabb, annál hasznosabb a riport.</li>
+                            <li><strong>Havi keretek meghatározása</strong> – ha szeretnél büdzsét tartani, állíts be kategóriánkénti havi keretet.</li>
+                            <li><strong>Riportok figyelése</strong> – havonta ellenőrizd, hogyan alakulnak a kiadásaid.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tárcák -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h2">
+                        <i class="bi bi-wallet2 text-primary me-2"></i>Tárcák
+                    </button>
+                </h2>
+                <div id="h2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Mi az a tárca?</dt>
+                            <dd class="text-muted">Egy tárca egy pénzforrást jelöl: bankszámla, készpénztárca, megtakarítás, hitelkártya, stb. Több tárcát is kezelhetsz egyszerre.</dd>
+                            <dt>Nyitóegyenleg</dt>
+                            <dd class="text-muted">Az az összeg, amennyivel a tárca az alkalmazásba való rögzítéskor rendelkezik. Pl. ha a bankszámlád egyenlege 150 000 Ft, azt add meg nyitóegyenlegként.</dd>
+                            <dt>Készpénz jelölő</dt>
+                            <dd class="text-muted">Ha egy tárcát készpénzesnek jelölsz, az ide rögzített összegek 5 Ft-ra kerekítődnek (Magyarországon nincs 1–2 Ft-os aprópénz).</dd>
+                            <dt>Sorrend módosítás</dt>
+                            <dd class="text-muted mb-0">A tárcák sorrendjét fel/le nyilakkal változtathatod. Ez a sorrend jelenik meg a főoldalon és a tranzakcióknál is.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kategóriák -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h3">
+                        <i class="bi bi-tags text-primary me-2"></i>Kategóriák
+                    </button>
+                </h2>
+                <div id="h3" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Bevétel és kiadás kategóriák</dt>
+                            <dd class="text-muted">A két típus különálló. Tranzakció rögzítésekor a rendszer csak a megfelelő típusú kategóriákat ajánlja fel.</dd>
+                            <dt>Mire jók?</dt>
+                            <dd class="text-muted">A kategóriák megjelennek a riportokban (fánkdiagram, táblázat) és a havi keretekben. Minél pontosabbak, annál hasznosabb az elemzés.</dd>
+                            <dt>Törlés</dt>
+                            <dd class="text-muted mb-0">Kategória csak akkor törölhető, ha nincs hozzá rendelt tranzakció. Ha vannak, előbb azokat kell törölni vagy átsorolni.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tranzakciók -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h4">
+                        <i class="bi bi-list-ul text-primary me-2"></i>Tranzakciók
+                    </button>
+                </h2>
+                <div id="h4" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Bevétel vs. Kiadás</dt>
+                            <dd class="text-muted">Bevétel: pénz érkezik (pl. fizetés, visszatérítés). Kiadás: pénz megy (pl. vásárlás, számla).</dd>
+                            <dt>Tételek (részletes bontás)</dt>
+                            <dd class="text-muted">Egy tranzakciót több tételre bonthatsz – pl. egy bolti vásárlásnál: kenyér 500 Ft, tej 400 Ft, sajt 1200 Ft. A végösszeget a rendszer összesíti. Minden tételnek lehet külön kategóriája.</dd>
+                            <dt>Szerkesztés és törlés</dt>
+                            <dd class="text-muted">A tranzakcióra kattintva megnyílik a részletező oldal, ahol szerkesztheted vagy törölheted.</dd>
+                            <dt>Szűrés</dt>
+                            <dd class="text-muted">Típus, kategória és tárca szerint szűrhetsz. A szűrők kombinálhatók.</dd>
+                            <dt>CSV export</dt>
+                            <dd class="text-muted mb-0">A tranzakciókat CSV formátumban exportálhatod (pl. Excelbe). Az export a szűrt listára vonatkozik.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Átutalások -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h5">
+                        <i class="bi bi-arrow-left-right text-primary me-2"></i>Átutalások
+                    </button>
+                </h2>
+                <div id="h5" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Mi az az átutalás?</dt>
+                            <dd class="text-muted">Tárcák közötti pénzmozgás — <strong>nem bevétel és nem kiadás</strong>, hanem átcsoportosítás. Pl. készpénzt veszel fel a bankszámládról.</dd>
+                            <dt>Hatása az egyenlegre</dt>
+                            <dd class="text-muted">A forrás tárca egyenlege csökken, a cél tárca egyenlege nő. Az összes tárca együttes egyenlege nem változik.</dd>
+                            <dt>Mikor ne használd?</dt>
+                            <dd class="text-muted mb-0">Ha külső forrásból kapsz pénzt (fizetés, bevétel) vagy külső helyre fizetsz (vásárlás, számla), az tranzakció, nem átutalás.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Riportok -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h6">
+                        <i class="bi bi-bar-chart text-primary me-2"></i>Riportok
+                    </button>
+                </h2>
+                <div id="h6" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Időszak szűrő</dt>
+                            <dd class="text-muted">Bármely korábbi hónap kiválasztható. Az adatok az összes tárcát összesítve mutatják.</dd>
+                            <dt>Sávdiagram</dt>
+                            <dd class="text-muted">Az utóbbi hónapok bevétel és kiadás összehasonlítása. Gyorsan látható, melyik hónapban volt az egyenleg negatív.</dd>
+                            <dt>Fánkdiagram</dt>
+                            <dd class="text-muted">A kiválasztott hónap kiadásainak kategória szerinti megoszlása. Ha egy kategória nem jelenik meg, nincs benne kiadás az adott hónapban.</dd>
+                            <dt>Összesítő táblázat</dt>
+                            <dd class="text-muted mb-0">Kategóriánkénti részletezés: összeg és arány az összes kiadáshoz képest.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Havi keretek -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h7">
+                        <i class="bi bi-bullseye text-primary me-2"></i>Havi keretek
+                    </button>
+                </h2>
+                <div id="h7" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Mi az a havi keret?</dt>
+                            <dd class="text-muted">Kategóriánként megadhatod, mennyit szeretnél legfeljebb költeni egy hónapban. Pl. Élelmiszer: 50 000 Ft/hó.</dd>
+                            <dt>Szerkesztés</dt>
+                            <dd class="text-muted">A keret összegét közvetlenül a progress bar mellett szerkesztheted: kattints rá, módosítsd, majd nyomd meg az Entert.</dd>
+                            <dt>Progress bar</dt>
+                            <dd class="text-muted">Mutatja, a keret hány százalékát használtad fel az aktuális hónapban. Zöld (&lt;70%), Sárga (70–99%), Piros (túllépve).</dd>
+                            <dt>Nincs meg a kategóriám?</dt>
+                            <dd class="text-muted mb-0">Csak kiadás kategóriákhoz állíthatsz be keretet. Ha nem jelenik meg, hozd létre a <a href="{{ url_for('categories') }}">Kategóriák</a> oldalon.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blokk beolvasás -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h8">
+                        <i class="bi bi-camera text-primary me-2"></i>Blokk beolvasás
+                    </button>
+                </h2>
+                <div id="h8" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Hogyan működik?</dt>
+                            <dd class="text-muted">Fényképezd le a blokkot, az AI felismeri a tételeket, összegeket és a dátumot. Az eredmény szerkeszthető mentés előtt.</dd>
+                            <dt>Jobb eredmény érdekében</dt>
+                            <dd class="text-muted">Egyenes, jól megvilágított, rázkódásmentes fotó a legjobb. A blokk legyen teljes egészében látható a képen.</dd>
+                            <dt>Kredit rendszer</dt>
+                            <dd class="text-muted">Minden beolvasás egy kreditbe kerül. A havi limit csomagonként eltérő (Zsebpénz: 3, Megtakarító: 30, Befektető: korlátlan). Extra krediteket az admin tud hozzáadni.</dd>
+                            <dt>Mentés</dt>
+                            <dd class="text-muted mb-0">A „Mentés" gomb megnyomásáig semmi nem rögzül. Ellenőrizd és szerkeszd az adatokat, mielőtt jóváhagyod.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Biztonság -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#h9">
+                        <i class="bi bi-shield-check text-primary me-2"></i>Biztonság és fiók
+                    </button>
+                </h2>
+                <div id="h9" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                    <div class="accordion-body small">
+                        <dl class="mb-0">
+                            <dt>Bejelentkezési lehetőségek</dt>
+                            <dd class="text-muted">Bejelentkezhetsz Google-lal, GitHub-bal, vagy email+jelszó kombinációval. Ha mindkettőhöz ugyanazt az email címet használod, a rendszer összeköti a fiókokat.</dd>
+                            <dt>Kétlépéses hitelesítés (2FA)</dt>
+                            <dd class="text-muted">A Fiókom oldalon aktiválhatod a Google Authenticator alapú 2FA-t. Ez egy extra védelmi réteg: belépéskor a telefonon lévő 6 jegyű kódot is meg kell adni.</dd>
+                            <dt>Elfelejtett jelszó</dt>
+                            <dd class="text-muted">A bejelentkezési oldalon kérhetsz jelszó-visszaállítási linket. A link 1 óráig érvényes és emailben érkezik.</dd>
+                            <dt>Fiók törlés</dt>
+                            <dd class="text-muted mb-0">A Fiókom oldalon kérheted a fiókod törlését. Ez GDPR-kompatibilis, teljes adattörlés — visszafordíthatatlan.</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="text-center mt-4">
+            <p class="text-muted small">Nem találtad meg a választ? Lépj kapcsolatba az adminisztrátorral.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

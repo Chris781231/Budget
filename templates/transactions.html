@@ -393,4 +393,29 @@ function recalcAmount() {
     updateRoundingHint();
 }
 </script>
+{% block help_content %}
+<h6 class="fw-bold mb-3"><i class="bi bi-list-ul text-primary me-2"></i>Tranzakciók – Súgó</h6>
+<div class="list-group list-group-flush">
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-plus-circle text-success me-1"></i>Tranzakció rögzítése</div>
+        <div class="text-muted small">Válaszd ki a típust (Bevétel / Kiadás), add meg az összeget, kategóriát, dátumot és tárcát, majd mentsd el.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-card-list text-primary me-1"></i>Tételek (részletes bontás)</div>
+        <div class="text-muted small">Egy tranzakciót több tételre bonthatsz – pl. egy bolti vásárlásnál: kenyér 500 Ft, tej 400 Ft, sajt 1200 Ft. A végösszeget a rendszer automatikusan összesíti.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-funnel text-primary me-1"></i>Szűrés</div>
+        <div class="text-muted small">Típus, kategória és tárca szerint szűrhetsz. A szűrők egymással kombinálhatók.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-currency-exchange text-warning me-1"></i>Készpénz kerekítés</div>
+        <div class="text-muted small">Ha a kiválasztott tárca „Készpénz" típusú, az összeg automatikusan 5 Ft-ra kerekítődik (nincs 1–2 Ft-os aprópénz Magyarországon).</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-chevron-bar-right text-muted me-1"></i>Lapozás</div>
+        <div class="text-muted small">Oldalanként 25 tranzakció jelenik meg. A lista legújabb tranzakcióval kezdődik.</div>
+    </div>
+</div>
+{% endblock %}
 {% endblock %}

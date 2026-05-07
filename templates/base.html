@@ -88,6 +88,7 @@
                 </div>
                 <div class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
+                    <a class="nav-link {% if request.endpoint == 'help_page' %}active{% endif %}" href="{{ url_for('help_page') }}"><i class="bi bi-question-circle"></i> Súgó</a>
                     <a class="nav-link" href="{{ url_for('account') }}"><i class="bi bi-person-circle"></i> {{ current_user.name }}</a>
                     <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i> Kijelentkezés</a>
                     {% endif %}
@@ -111,6 +112,35 @@
         {% block content %}{% endblock %}
     </div>
 
+    {% if current_user.is_authenticated %}
+    <button class="btn btn-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center"
+            style="position:fixed;bottom:24px;right:24px;width:46px;height:46px;z-index:1040;font-size:1.2rem;"
+            data-bs-toggle="modal" data-bs-target="#helpModal" title="Súgó">
+        <i class="bi bi-question-lg"></i>
+    </button>
+    <div class="modal fade" id="helpModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-question-circle text-primary me-2"></i>Súgó</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% block help_content %}
+                    <p class="text-muted">Erre az oldalra még nem érhető el kontextuális súgó.</p>
+                    {% endblock %}
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <a href="{{ url_for('help_page') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-book me-1"></i>Teljes súgó megnyitása
+                    </a>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal">Bezárás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div id="cookie-banner" class="position-fixed bottom-0 start-0 end-0 bg-dark text-white p-3 d-none" style="z-index:1050;">
         <div class="container d-flex align-items-center justify-content-between gap-3 flex-wrap">
             <span class="small">
@@ -125,8 +155,11 @@
     </div>
 
     <footer class="text-center text-muted py-4 mt-5 border-top small">
-        <a href="{{ url_for('privacy') }}" class="text-muted text-decoration-none">
+        <a href="{{ url_for('privacy') }}" class="text-muted text-decoration-none me-3">
             <i class="bi bi-shield-check"></i> Adatkezelési tájékoztató
+        </a>
+        <a href="{{ url_for('help_page') }}" class="text-muted text-decoration-none">
+            <i class="bi bi-question-circle"></i> Súgó
         </a>
     </footer>
 

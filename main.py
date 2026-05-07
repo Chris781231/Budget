@@ -425,6 +425,11 @@ def privacy():
     return render_template('privacy.html')
 
 
+@app.route('/help')
+def help_page():
+    return render_template('help.html')
+
+
 @app.route('/account')
 @login_required
 def account():

@@ -260,4 +260,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+{% block help_content %}
+<h6 class="fw-bold mb-3"><i class="bi bi-camera text-primary me-2"></i>Blokk beolvasás – Súgó</h6>
+<div class="list-group list-group-flush">
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-magic text-primary me-1"></i>Hogyan működik?</div>
+        <div class="text-muted small">Az AI automatikusan felismeri a blokkon lévő tételeket, összegeket és a dátumot. Az eredmény szerkeszthető, mentés előtt ellenőrizd az adatokat.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-lightbulb text-warning me-1"></i>Jobb eredmény érdekében</div>
+        <div class="text-muted small">Egyenes, jól megvilágított, rázkódásmentes fotó a legjobb. Ügyelj rá, hogy a blokk teljes egészében látható legyen a képen.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-credit-card text-primary me-1"></i>Kredit rendszer</div>
+        <div class="text-muted small">Minden beolvasás egy kreditbe kerül. A havi keret csomagonként eltérő. Ha elfogyott a kreditje, az admin tud extra krediteket adni, vagy csomagot válthat.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-pencil-square text-muted me-1"></i>Szerkesztés mentés előtt</div>
+        <div class="text-muted small">A felismert tételek, összegek, kategória és dátum mind módosítható. Csak a „Mentés" gomb megnyomása rögzíti véglegesesen a tranzakciókat.</div>
+    </div>
+</div>
+{% endblock %}
 {% endblock %}

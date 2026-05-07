@@ -99,4 +99,25 @@
         </div>
     </div>
 </div>
+{% block help_content %}
+<h6 class="fw-bold mb-3"><i class="bi bi-bullseye text-primary me-2"></i>Havi keretek – Súgó</h6>
+<div class="list-group list-group-flush">
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-info-circle text-primary me-1"></i>Mi az a havi keret?</div>
+        <div class="text-muted small">Kategóriánként megadhatod, mennyit szeretnél legfeljebb költeni egy hónapban. Pl. Élelmiszer: 50 000 Ft/hó.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-pencil text-primary me-1"></i>Szerkesztés</div>
+        <div class="text-muted small">A keret összegét közvetlenül a progress bar mellett szerkesztheted – kattints rá, módosítsd, majd nyomd meg az Entert vagy a pipát.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-bar-chart-steps text-warning me-1"></i>Progress bar értelmezése</div>
+        <div class="text-muted small">Mutatja, a keret hány százalékát használtad fel az aktuális hónapban. Zöld: 70% alatt, Sárga: 70–99%, Piros: túllépve.</div>
+    </div>
+    <div class="list-group-item px-0">
+        <div class="fw-semibold small mb-1"><i class="bi bi-plus-circle text-success me-1"></i>Új keret</div>
+        <div class="text-muted small">Csak kiadás kategóriához állíthatsz be keretet. Ha egy kategória nem jelenik meg a listában, nem létezik ilyen kiadás kategória — először hozd létre a Kategóriák oldalon.</div>
+    </div>
+</div>
+{% endblock %}
 {% endblock %}
