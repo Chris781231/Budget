@@ -15,7 +15,7 @@ import qrcode
 from datetime import datetime, timedelta
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
-import resend
+import requests as http_requests
 import secrets
 from functools import wraps
 
@@ -27,7 +27,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
 csrf = CSRFProtect(app)
 
-resend.api_key = os.environ.get('RESEND_API_KEY', '')
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '')
 
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""),
@@ -751,16 +751,23 @@ def forgot_password():
             conn.commit()
             reset_url = url_for('reset_password', token=token, _external=True)
             try:
-                resend.Emails.send({
-                    "from": f"Költségvetés <{os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')}>",
-                    "to": [email],
-                    "subject": "Jelszó visszaállítás – Költségvetés",
-                    "text": f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
-                })
+                resp = http_requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": "Költségvetés", "email": os.environ.get('BREVO_FROM_EMAIL', 'noreply@koltsegvetes.app')},
+                        "to": [{"email": email}],
+                        "subject": "Jelszó visszaállítás – Költségvetés",
+                        "textContent": f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
+                    },
+                    timeout=10
+                )
+                resp.raise_for_status()
             except Exception as e:
-                app.logger.error(f"Resend hiba: {e}")
+                app.logger.error(f"Brevo hiba: {e}")
                 conn.close()
                 flash(f'Az email küldése sikertelen: {e}', 'danger')
+
                 return render_template('forgot_password.html')
         conn.close()
         flash('Ha az email cím regisztrált és jelszavas fiókhoz tartozik, elküldtük a visszaállítási linket.', 'info')
