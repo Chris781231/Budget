@@ -22,7 +22,7 @@ vagy üres string ha nem egyértelmű.
 Csak a JSON-t add vissza, semmi mást."""
 
 
-def scan_receipt_images(images):
+def scan_receipt_images(images, model="claude-sonnet-4-6"):
     """
     images: list of (bytes, media_type) tuples
     Returns dict with 'vegosszeg' and 'tetelek' keys
@@ -46,7 +46,7 @@ def scan_receipt_images(images):
     content.append({"type": "text", "text": SCAN_PROMPT})
 
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=model,
         max_tokens=2048,
         messages=[{"role": "user", "content": content}]
     )
