@@ -98,8 +98,8 @@
                 <tr>
                     <th>Dátum</th>
                     <th>Leírás</th>
-                    <th>Kategória</th>
-                    {% if active_wallet == 'all' %}<th>Tárca</th>{% endif %}
+                    <th class="d-none d-md-table-cell">Kategória</th>
+                    {% if active_wallet == 'all' %}<th class="d-none d-md-table-cell">Tárca</th>{% endif %}
                     <th class="text-end">Összeg</th>
                 </tr>
             </thead>
@@ -108,8 +108,8 @@
                 <tr>
                     <td>{{ t.date }}</td>
                     <td>{{ t.description or '-' }}</td>
-                    <td>{{ t.category_name or '-' }}</td>
-                    {% if active_wallet == 'all' %}<td>{{ t.wallet_name or '-' }}</td>{% endif %}
+                    <td class="d-none d-md-table-cell">{{ t.category_name or '-' }}</td>
+                    {% if active_wallet == 'all' %}<td class="d-none d-md-table-cell">{{ t.wallet_name or '-' }}</td>{% endif %}
                     <td class="text-end fw-bold {{ 'text-success' if t.type == 'income' else 'text-danger' }}">
                         {{ '+' if t.type == 'income' else '-' }}{{ "%.0f"|format(t.amount) }} Ft
                     </td>

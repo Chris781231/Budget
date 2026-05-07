@@ -60,6 +60,10 @@
         body.theme-lavender .badge.bg-danger { background-color: #C06B6B !important; }
         body.theme-lavender .progress-bar.bg-success { background-color: #5A9B7A !important; }
         body.theme-lavender .progress-bar.bg-danger { background-color: #C06B6B !important; }
+
+        @media (max-width: 767.98px) {
+            .main-content { padding-bottom: 80px; }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -97,7 +101,7 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
+    <div class="container mt-4 main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
