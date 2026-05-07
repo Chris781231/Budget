@@ -15,7 +15,7 @@ import qrcode
 from datetime import datetime, timedelta
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_mail import Mail, Message
+import resend
 import secrets
 from functools import wraps
 
@@ -27,13 +27,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
 csrf = CSRFProtect(app)
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('GMAIL_ADDRESS', '')
-app.config['MAIL_PASSWORD'] = os.environ.get('GMAIL_APP_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('GMAIL_ADDRESS', '')
-mail = Mail(app)
+resend.api_key = os.environ.get('RESEND_API_KEY', '')
 
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""),
@@ -757,12 +751,12 @@ def forgot_password():
             conn.commit()
             reset_url = url_for('reset_password', token=token, _external=True)
             try:
-                msg = Message(
-                    subject='Jelszó visszaállítás – Költségvetés',
-                    recipients=[email],
-                    body=f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
-                )
-                mail.send(msg)
+                resend.Emails.send({
+                    "from": f"Költségvetés <{os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')}>",
+                    "to": [email],
+                    "subject": "Jelszó visszaállítás – Költségvetés",
+                    "text": f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
+                })
             except Exception:
                 conn.close()
                 flash('Az email küldése sikertelen. Ellenőrizd a szerver beállításait.', 'danger')
