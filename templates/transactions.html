@@ -1,15 +1,31 @@
 {% extends 'base.html' %}
+
+{% block head %}
+<style>
+/* Tárca pill-ek: mobilon/tableten görgetés, desktopon grid */
+@media (max-width: 991.98px) {
+    #wallet-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 0.5rem; scrollbar-width: none; }
+    #wallet-tabs::-webkit-scrollbar { display: none; }
+    #wallet-tabs .nav-item { flex-shrink: 0; }
+}
+@media (min-width: 992px) {
+    #wallet-tabs { flex-wrap: wrap; gap: 0.35rem; }
+    #wallet-tabs .nav-link { min-width: 110px; text-align: center; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <h2 class="mb-3">Tranzakciók</h2>
 
-<ul class="nav nav-pills mb-4 flex-nowrap overflow-auto pb-1">
-    <li class="nav-item flex-shrink-0">
+<ul class="nav nav-pills mb-4" id="wallet-tabs">
+    <li class="nav-item">
         <a class="nav-link {% if active_wallet == 'all' %}active{% endif %}" href="?wallet=all">
             <i class="bi bi-collection"></i> Összes
         </a>
     </li>
     {% for w in wallets %}
-    <li class="nav-item flex-shrink-0">
+    <li class="nav-item">
         <a class="nav-link {% if active_wallet == w.id %}active{% endif %}" href="?wallet={{ w.id }}">
             <i class="bi bi-wallet2"></i> {{ w.name }}
         </a>
@@ -38,12 +54,14 @@
                        placeholder="Keresés leírásban..." value="{{ q }}">
             </div>
             <div class="col-md-2">
+                <label class="form-label form-label-sm mb-1 text-muted">Dátumtól</label>
                 <input type="date" name="date_from" class="form-control form-control-sm"
-                       value="{{ date_from }}" title="Dátumtól">
+                       value="{{ date_from }}">
             </div>
             <div class="col-md-2">
+                <label class="form-label form-label-sm mb-1 text-muted">Dátumig</label>
                 <input type="date" name="date_to" class="form-control form-control-sm"
-                       value="{{ date_to }}" title="Dátumig">
+                       value="{{ date_to }}">
             </div>
             <div class="col-md-2">
                 <select name="filter_type" class="form-select form-select-sm">
