@@ -1,4 +1,7 @@
 anthropic
+pillow==12.2.0
+pyotp==2.9.0
+qrcode==8.2
 blinker==1.9.0
 certifi==2026.4.22
 charset-normalizer==3.4.7

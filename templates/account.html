@@ -49,6 +49,35 @@
         </div>
 
         <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-shield-lock"></i> Kétlépéses hitelesítés (2FA)</div>
+            <div class="card-body">
+                {% if current_user.totp_enabled %}
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Aktív</span>
+                    <span class="small text-muted">A Google Authenticator kód minden bejelentkezésnél szükséges.</span>
+                </div>
+                <p class="small text-muted mb-3">A kikapcsoláshoz add meg az aktuális hitelesítő kódot:</p>
+                <form method="POST" action="{{ url_for('two_factor_disable') }}" class="d-flex gap-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="text" name="code" class="form-control form-control-sm"
+                           placeholder="6 jegyű kód" maxlength="7" inputmode="numeric" style="max-width:140px;">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-shield-x me-1"></i> 2FA kikapcsolása
+                    </button>
+                </form>
+                {% else %}
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge bg-secondary">Inaktív</span>
+                    <span class="small text-muted">Fokozott biztonság a pénzügyi adatokhoz.</span>
+                </div>
+                <a href="{{ url_for('two_factor_setup') }}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-shield-check me-1"></i> 2FA bekapcsolása
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-palette"></i> Megjelenés</div>
             <div class="card-body">
                 {% set t = current_user.theme or 'original' %}

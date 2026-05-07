@@ -1,13 +1,17 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+import base64
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session
 import csv
 import io
 import zipfile
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_dance.contrib.google import make_google_blueprint, google
+from flask_dance.contrib.github import make_github_blueprint, github
 from flask_dance.consumer import oauth_authorized
 from flask_wtf.csrf import CSRFProtect
 import sqlite3
+import pyotp
+import qrcode
 from datetime import datetime
 from werkzeug.middleware.proxy_fix import ProxyFix
 from functools import wraps
@@ -28,6 +32,13 @@ google_bp = make_google_blueprint(
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
+github_bp = make_github_blueprint(
+    client_id=os.environ.get("GITHUB_OAUTH_CLIENT_ID", ""),
+    client_secret=os.environ.get("GITHUB_OAUTH_CLIENT_SECRET", ""),
+    scope="read:user,user:email"
+)
+app.register_blueprint(github_bp, url_prefix="/login")
+
 login_manager = LoginManager(app)
 login_manager.login_view = "login_page"
 
@@ -35,12 +46,22 @@ DATABASE = '/data/koltsegvetes.db' if os.environ.get('RAILWAY_ENVIRONMENT') else
 
 
 class User(UserMixin):
-    def __init__(self, id, name, email, theme='original', is_admin=False):
+    def __init__(self, id, name, email, theme='original', is_admin=False, totp_enabled=False):
         self.id = id
         self.name = name
         self.email = email
         self.theme = theme
         self.is_admin = is_admin
+        self.totp_enabled = totp_enabled
+
+
+def user_from_row(row):
+    return User(
+        row["id"], row["name"], row["email"],
+        row["theme"] if row["theme"] else 'original',
+        row["email"] in ADMIN_EMAILS,
+        bool(row["totp_enabled"])
+    )
 
 
 @login_manager.user_loader
@@ -49,10 +70,21 @@ def load_user(user_id):
     row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     conn.close()
     if row:
-        return User(row["id"], row["name"], row["email"],
-                    row["theme"] if row["theme"] else 'original',
-                    row["email"] in ADMIN_EMAILS)
+        return user_from_row(row)
     return None
+
+
+@app.before_request
+def enforce_2fa():
+    exempt = {
+        'two_factor_verify', 'logout', 'static', 'login_page', 'privacy',
+        'google.login', 'google.authorized',
+        'github.login', 'github.authorized',
+    }
+    if (current_user.is_authenticated
+            and session.get('needs_2fa')
+            and request.endpoint not in exempt):
+        return redirect(url_for('two_factor_verify'))
 
 
 def get_db():
@@ -293,6 +325,10 @@ def init_db():
         "scans_used INTEGER DEFAULT 0",
         "scans_period TEXT",
         "extra_scans INTEGER DEFAULT 0",
+        "github_id TEXT",
+        "apple_id TEXT",
+        "totp_secret TEXT",
+        "totp_enabled INTEGER DEFAULT 0",
     ]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col}")
@@ -496,6 +532,17 @@ def export_account():
 
 # --- Auth ---
 
+def _finish_oauth_login(conn, row, name):
+    user = user_from_row(row)
+    login_user(user)
+    if user.totp_enabled:
+        session['needs_2fa'] = True
+    else:
+        session.pop('needs_2fa', None)
+    conn.close()
+    flash(f"Üdvözöllek, {name}!", "success")
+
+
 @oauth_authorized.connect_via(google_bp)
 def google_logged_in(blueprint, token):
     if not token:
@@ -512,14 +559,56 @@ def google_logged_in(blueprint, token):
     conn = get_db()
     row = conn.execute("SELECT * FROM users WHERE google_id=?", (google_id,)).fetchone()
     if row is None:
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        if row:
+            conn.execute("UPDATE users SET google_id=? WHERE id=?", (google_id, row["id"]))
+            conn.commit()
+            row = conn.execute("SELECT * FROM users WHERE id=?", (row["id"],)).fetchone()
+    if row is None:
         conn.execute("INSERT INTO users (google_id, name, email) VALUES (?, ?, ?)", (google_id, name, email))
         conn.commit()
         row = conn.execute("SELECT * FROM users WHERE google_id=?", (google_id,)).fetchone()
         setup_new_user(conn, row["id"])
         conn.commit()
-    conn.close()
-    login_user(User(row["id"], row["name"], row["email"]))
-    flash(f"Üdvözöllek, {name}!", "success")
+    _finish_oauth_login(conn, row, name)
+    return False
+
+
+@oauth_authorized.connect_via(github_bp)
+def github_logged_in(blueprint, token):
+    if not token:
+        flash("Nem sikerült bejelentkezni GitHub-fiókkal.", "danger")
+        return False
+    resp = blueprint.session.get("/user")
+    if not resp.ok:
+        flash("Nem sikerült lekérni a GitHub-fiók adatait.", "danger")
+        return False
+    info = resp.json()
+    github_id = str(info["id"])
+    name = info.get("name") or info.get("login", "")
+    email = info.get("email") or ""
+    if not email:
+        emails_resp = blueprint.session.get("/user/emails")
+        if emails_resp.ok:
+            primary = next((e for e in emails_resp.json()
+                            if e.get("primary") and e.get("verified")), None)
+            if primary:
+                email = primary["email"]
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE github_id=?", (github_id,)).fetchone()
+    if row is None and email:
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        if row:
+            conn.execute("UPDATE users SET github_id=? WHERE id=?", (github_id, row["id"]))
+            conn.commit()
+            row = conn.execute("SELECT * FROM users WHERE id=?", (row["id"],)).fetchone()
+    if row is None:
+        conn.execute("INSERT INTO users (github_id, name, email) VALUES (?, ?, ?)", (github_id, name, email))
+        conn.commit()
+        row = conn.execute("SELECT * FROM users WHERE github_id=?", (github_id,)).fetchone()
+        setup_new_user(conn, row["id"])
+        conn.commit()
+    _finish_oauth_login(conn, row, name)
     return False
 
 
@@ -533,9 +622,73 @@ def login_page():
 @app.route('/logout')
 @login_required
 def logout():
+    session.pop('needs_2fa', None)
     logout_user()
     flash("Sikeresen kijelentkeztél.", "info")
     return redirect(url_for("login_page"))
+
+
+# --- 2FA ---
+
+@app.route('/2fa/verify', methods=['GET', 'POST'])
+@login_required
+def two_factor_verify():
+    if not session.get('needs_2fa'):
+        return redirect(url_for('index'))
+    error = None
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip().replace(' ', '')
+        conn = get_db()
+        row = conn.execute("SELECT totp_secret FROM users WHERE id=?", (current_user.id,)).fetchone()
+        conn.close()
+        if row and row['totp_secret'] and pyotp.TOTP(row['totp_secret']).verify(code, valid_window=1):
+            session.pop('needs_2fa', None)
+            return redirect(url_for('index'))
+        error = "Hibás kód. Próbáld újra."
+    return render_template('2fa_verify.html', error=error)
+
+
+@app.route('/2fa/setup', methods=['GET', 'POST'])
+@login_required
+def two_factor_setup():
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip().replace(' ', '')
+        secret = session.get('totp_secret_pending')
+        if secret and pyotp.TOTP(secret).verify(code, valid_window=1):
+            conn = get_db()
+            conn.execute("UPDATE users SET totp_secret=?, totp_enabled=1 WHERE id=?",
+                         (secret, current_user.id))
+            conn.commit()
+            conn.close()
+            session.pop('totp_secret_pending', None)
+            flash("Kétlépéses hitelesítés sikeresen aktiválva!", "success")
+            return redirect(url_for('account'))
+        flash("Hibás kód. Próbáld újra.", "danger")
+
+    secret = session.get('totp_secret_pending') or pyotp.random_base32()
+    session['totp_secret_pending'] = secret
+    uri = pyotp.TOTP(secret).provisioning_uri(current_user.email, issuer_name="Költségvetés")
+    qr_img = qrcode.make(uri)
+    buf = io.BytesIO()
+    qr_img.save(buf, format='PNG')
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    return render_template('2fa_setup.html', qr_b64=qr_b64, secret=secret)
+
+
+@app.route('/2fa/disable', methods=['POST'])
+@login_required
+def two_factor_disable():
+    code = request.form.get('code', '').strip().replace(' ', '')
+    conn = get_db()
+    row = conn.execute("SELECT totp_secret FROM users WHERE id=?", (current_user.id,)).fetchone()
+    if row and row['totp_secret'] and pyotp.TOTP(row['totp_secret']).verify(code, valid_window=1):
+        conn.execute("UPDATE users SET totp_secret=NULL, totp_enabled=0 WHERE id=?", (current_user.id,))
+        conn.commit()
+        flash("Kétlépéses hitelesítés kikapcsolva.", "info")
+    else:
+        flash("Hibás kód — a 2FA nem lett kikapcsolva.", "danger")
+    conn.close()
+    return redirect(url_for('account'))
 
 
 # --- Index ---

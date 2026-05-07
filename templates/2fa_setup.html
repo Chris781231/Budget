@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+        <div class="d-flex align-items-center mb-3 gap-2">
+            <a href="{{ url_for('account') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Vissza
+            </a>
+            <h4 class="mb-0">Kétlépéses hitelesítés beállítása</h4>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <p class="fw-semibold mb-1">1. lépés — Telepítsd a Google Authenticator alkalmazást</p>
+                <p class="text-muted small mb-0">
+                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android</a> ·
+                    <a href="https://apps.apple.com/app/google-authenticator/id388497605" target="_blank">iOS</a>
+                </p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-body text-center">
+                <p class="fw-semibold mb-3">2. lépés — Olvasd be a QR-kódot</p>
+                <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR-kód" class="img-fluid mb-3" style="max-width:220px;">
+                <p class="small text-muted mb-1">Ha nem tudod beolvasni, add meg kézzel ezt a kódot:</p>
+                <code class="d-block bg-light rounded p-2 mb-0" style="letter-spacing:2px;font-size:.95rem;">{{ secret }}</code>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="fw-semibold mb-3">3. lépés — Ellenőrzés</p>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="form-label small">Add meg az alkalmazásban megjelenő 6 jegyű kódot:</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" name="code" class="form-control text-center"
+                               placeholder="000 000" maxlength="7" autocomplete="one-time-code"
+                               inputmode="numeric" autofocus>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">
+                            <i class="bi bi-shield-check me-1"></i> Aktiválás
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
