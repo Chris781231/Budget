@@ -34,10 +34,11 @@ DATABASE = '/data/koltsegvetes.db' if os.environ.get('RAILWAY_ENVIRONMENT') else
 
 
 class User(UserMixin):
-    def __init__(self, id, name, email):
+    def __init__(self, id, name, email, theme='original'):
         self.id = id
         self.name = name
         self.email = email
+        self.theme = theme
 
 
 @login_manager.user_loader
@@ -46,7 +47,7 @@ def load_user(user_id):
     row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     conn.close()
     if row:
-        return User(row["id"], row["name"], row["email"])
+        return User(row["id"], row["name"], row["email"], row["theme"] if row["theme"] else 'original')
     return None
 
 
@@ -206,6 +207,10 @@ def init_db():
         c.execute("UPDATE wallets SET is_cash=1 WHERE name='Készpénz'")
     except Exception:
         pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'original'")
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()
@@ -222,6 +227,21 @@ def privacy():
 @login_required
 def account():
     return render_template('account.html')
+
+
+@app.route('/account/theme', methods=['POST'])
+@login_required
+def update_theme():
+    theme = request.form.get('theme', 'original')
+    if theme not in ('original', 'blue', 'green', 'lavender'):
+        theme = 'original'
+    conn = get_db()
+    conn.execute("UPDATE users SET theme=? WHERE id=?", (theme, current_user.id))
+    conn.commit()
+    conn.close()
+    current_user.theme = theme
+    flash('Téma sikeresen módosítva!', 'success')
+    return redirect(url_for('account'))
 
 
 @app.route('/account/delete', methods=['POST'])
