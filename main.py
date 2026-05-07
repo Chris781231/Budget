@@ -228,8 +228,36 @@ def init_db():
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        google_id TEXT UNIQUE NOT NULL,
+        google_id TEXT UNIQUE,
         name TEXT, email TEXT)''')
+
+    # Migration: google_id NOT NULL -> nullable (email+password users have no google_id)
+    try:
+        tbl = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'"
+        ).fetchone()
+        if tbl and 'NOT NULL' in tbl[0] and 'google_id' in tbl[0]:
+            existing_cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+            c.execute('''CREATE TABLE users_tmp (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                google_id TEXT UNIQUE, name TEXT, email TEXT,
+                theme TEXT DEFAULT 'original',
+                plan TEXT DEFAULT 'free', plan_expires_at TEXT,
+                scans_used INTEGER DEFAULT 0, scans_period TEXT,
+                extra_scans INTEGER DEFAULT 0,
+                github_id TEXT, apple_id TEXT,
+                totp_secret TEXT, totp_enabled INTEGER DEFAULT 0,
+                password_hash TEXT)''')
+            target = ['id','google_id','name','email','theme','plan','plan_expires_at',
+                      'scans_used','scans_period','extra_scans','github_id','apple_id',
+                      'totp_secret','totp_enabled','password_hash']
+            cols = ', '.join(col for col in target if col in existing_cols)
+            c.execute(f'INSERT INTO users_tmp ({cols}) SELECT {cols} FROM users')
+            c.execute('DROP TABLE users')
+            c.execute('ALTER TABLE users_tmp RENAME TO users')
+            conn.commit()
+    except Exception:
+        pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS wallets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
