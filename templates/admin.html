@@ -37,29 +37,50 @@
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header d-flex justify-content-between align-items-center">
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-people"></i> Felhasználók</span>
-        <span class="badge bg-secondary">{{ stats.total_scans }} beolvasás ebben a hónapban</span>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge bg-secondary">{{ stats.total_scans }} beolvasás ebben a hónapban</span>
+            <form method="GET" action="/admin" class="d-flex gap-1">
+                <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
+                       placeholder="Keresés név, email..." style="width:200px;">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-search"></i>
+                </button>
+                {% if q %}
+                <a href="/admin" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></a>
+                {% endif %}
+            </form>
+        </div>
     </div>
     <div class="table-responsive">
-        <table class="table table-striped table-hover mb-0 align-middle">
+        <table class="table table-striped table-hover mb-0 align-middle small">
             <thead>
                 <tr>
                     <th>Felhasználó</th>
+                    <th>Státusz</th>
                     <th>Csomag</th>
                     <th>Lejárat</th>
                     <th>Beolvasás</th>
-                    <th>Extra</th>
+                    <th>Tranzakció</th>
+                    <th>Utolsó belépés</th>
                     <th>Műveletek</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in users %}
-                <tr>
+                <tr class="{{ 'table-secondary text-muted' if not u.is_active }}">
                     <td>
                         <div class="fw-semibold">{{ u.name }}</div>
                         <small class="text-muted">{{ u.email }}</small>
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                        <span class="badge bg-success">Aktív</span>
+                        {% else %}
+                        <span class="badge bg-danger">Tiltott</span>
+                        {% endif %}
                     </td>
                     <td>
                         <span class="badge {{ 'bg-secondary' if u.plan == 'free' else ('bg-info text-dark' if u.plan == 'megtakaritor' else 'bg-primary') }}">
@@ -69,55 +90,122 @@
                     </td>
                     <td><small>{{ u.plan_expires_at or '–' }}</small></td>
                     <td>
-                        <span class="small">{{ u.scans_used }} / {{ u.monthly_limit + u.extra_scans if u.extra_scans > 0 else u.monthly_limit }}{% if u.extra_scans > 0 %} <span class="text-muted">(+{{ u.extra_scans }})</span>{% endif %}</span>
-                        <div class="progress mt-1" style="height:4px;width:70px;">
+                        <span>{{ u.scans_used }} / {{ u.monthly_limit + u.extra_scans if u.extra_scans > 0 else u.monthly_limit }}{% if u.extra_scans > 0 %} <span class="text-muted">(+{{ u.extra_scans }})</span>{% endif %}</span>
+                        <div class="progress mt-1" style="height:4px;width:60px;">
                             <div class="progress-bar {{ 'bg-danger' if u.pct >= 100 else ('bg-warning' if u.pct >= 80 else 'bg-success') }}"
                                  style="width:{{ u.pct }}%;"></div>
                         </div>
                     </td>
-                    <td>
-                        {% if u.extra_scans > 0 %}
-                        <span class="badge bg-success">{{ u.extra_scans }}</span>
-                        {% else %}
-                        <span class="text-muted">–</span>
-                        {% endif %}
-                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ u.tx_count }}</span></td>
+                    <td><small class="text-muted">{{ u.last_login }}</small></td>
                     <td>
                         <div class="d-flex flex-column gap-2">
                             <form method="POST" action="/admin/users/{{ u.id }}/plan"
                                   class="d-flex gap-1 align-items-center flex-wrap">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <select name="plan" class="form-select form-select-sm" style="width:130px;">
+                                <select name="plan" class="form-select form-select-sm" style="width:120px;">
                                     {% for pk, pv in plans.items() %}
                                     <option value="{{ pk }}" {{ 'selected' if u.plan == pk }}>{{ pv.display }}</option>
                                     {% endfor %}
                                 </select>
                                 <input type="date" name="expires_at" class="form-control form-control-sm"
-                                       style="width:140px;" value="{{ u.plan_expires_at }}"
-                                       title="Lejárat dátuma (üresen = örökös)">
-                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                       style="width:135px;" value="{{ u.plan_expires_at }}"
+                                       title="Lejárat (üresen = örökös)">
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Mentés">
                                     <i class="bi bi-check"></i>
                                 </button>
                             </form>
                             <form method="POST" action="/admin/users/{{ u.id }}/add-scans"
                                   class="d-flex gap-1 align-items-center">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <select name="amount" class="form-select form-select-sm" style="width:100px;">
+                                <select name="amount" class="form-select form-select-sm" style="width:90px;">
                                     <option value="10">+10 db</option>
                                     <option value="30">+30 db</option>
                                 </select>
-                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Extra kredit">
                                     <i class="bi bi-plus-circle"></i> Extra
                                 </button>
                             </form>
+                            <div class="d-flex gap-1 flex-wrap">
+                                <form method="POST" action="/admin/users/{{ u.id }}/toggle-active"
+                                      onsubmit="return confirm('{{ 'Fiók aktiválása?' if not u.is_active else 'Fiók letiltása? A felhasználó nem tud bejelentkezni.' }}')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit"
+                                            class="btn btn-sm {{ 'btn-outline-success' if not u.is_active else 'btn-outline-warning' }}"
+                                            title="{{ 'Aktiválás' if not u.is_active else 'Letiltás' }}">
+                                        <i class="bi {{ 'bi-unlock' if not u.is_active else 'bi-slash-circle' }}"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="/admin/users/{{ u.id }}/reset-link">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                            title="Jelszó reset link generálása">
+                                        <i class="bi bi-key"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="/admin/users/{{ u.id }}/delete"
+                                      onsubmit="return confirm('FIGYELEM: Törlöd {{ u.name }} fiókját és összes adatát? Ez nem vonható vissza (GDPR törlés).')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Törlés (GDPR)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" class="text-center text-muted py-3">Nincsenek felhasználók</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-3">Nincsenek felhasználók</td></tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history"></i> Aktivitás napló <span class="text-muted small">(utolsó 100)</span></span>
+        <button class="btn btn-sm btn-outline-secondary" type="button"
+                data-bs-toggle="collapse" data-bs-target="#logCollapse">
+            <i class="bi bi-chevron-down"></i>
+        </button>
+    </div>
+    <div class="collapse" id="logCollapse">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 small">
+                <thead>
+                    <tr>
+                        <th>Időpont</th>
+                        <th>Esemény</th>
+                        <th>Felhasználó</th>
+                        <th>IP (anonymizált)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td class="text-muted">{{ log.created_at }}</td>
+                        <td>
+                            {% if log.event_type == 'login' %}
+                            <span class="badge bg-success">Bejelentkezés</span>
+                            {% elif log.event_type == 'transaction' %}
+                            <span class="badge bg-primary">Tranzakció</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ log.event_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-semibold">{{ log.name or '–' }}</span>
+                            <small class="text-muted d-block">{{ log.email or '' }}</small>
+                        </td>
+                        <td class="text-muted">{{ log.ip_anon or '–' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">Nincs napló bejegyzés</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

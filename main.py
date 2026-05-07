@@ -52,22 +52,54 @@ DATABASE = '/data/koltsegvetes.db' if os.environ.get('RAILWAY_ENVIRONMENT') else
 
 
 class User(UserMixin):
-    def __init__(self, id, name, email, theme='original', is_admin=False, totp_enabled=False):
+    def __init__(self, id, name, email, theme='original', is_admin=False, totp_enabled=False, account_active=True):
         self.id = id
         self.name = name
         self.email = email
         self.theme = theme
         self.is_admin = is_admin
         self.totp_enabled = totp_enabled
+        self.account_active = account_active
+
+    @property
+    def is_active(self):
+        return self.account_active
 
 
 def user_from_row(row):
+    try:
+        account_active = bool(row["is_active"]) if row["is_active"] is not None else True
+    except (IndexError, KeyError):
+        account_active = True
     return User(
         row["id"], row["name"], row["email"],
         row["theme"] if row["theme"] else 'original',
         row["email"] in ADMIN_EMAILS,
-        bool(row["totp_enabled"])
+        bool(row["totp_enabled"]),
+        account_active
     )
+
+
+def anonymize_ip(ip):
+    if not ip:
+        return None
+    parts = ip.split('.')
+    if len(parts) == 4:
+        return f"{parts[0]}.{parts[1]}.{parts[2]}.xxx"
+    if ':' in ip:
+        return ip.rsplit(':', 1)[0] + ':xxxx'
+    return ip[:12]
+
+
+def log_activity(conn, user_id, event_type):
+    try:
+        conn.execute(
+            "INSERT INTO activity_log (user_id, event_type, ip_anon, created_at) VALUES (?, ?, ?, ?)",
+            (user_id, event_type, anonymize_ip(request.remote_addr),
+             datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        )
+    except Exception:
+        pass
 
 
 @login_manager.user_loader
@@ -367,11 +399,20 @@ def init_db():
         "password_hash TEXT",
         "reset_token TEXT",
         "reset_token_expires TEXT",
+        "is_active INTEGER DEFAULT 1",
+        "last_login TEXT",
     ]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col}")
         except Exception:
             pass
+
+    c.execute('''CREATE TABLE IF NOT EXISTS activity_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
+        event_type TEXT NOT NULL,
+        ip_anon TEXT,
+        created_at TEXT NOT NULL)''')
 
     conn.commit()
     conn.close()
@@ -414,12 +455,15 @@ def update_theme():
 @login_required
 @admin_required
 def admin_panel():
+    q = request.args.get('q', '').strip().lower()
     conn = get_db()
-    users = conn.execute("SELECT * FROM users ORDER BY id").fetchall()
+    all_users = conn.execute("SELECT * FROM users ORDER BY id").fetchall()
     current_month = datetime.today().strftime('%Y-%m')
     today_str = datetime.today().strftime('%Y-%m-%d')
     user_list = []
-    for u in users:
+    for u in all_users:
+        if q and q not in (u['name'] or '').lower() and q not in (u['email'] or '').lower():
+            continue
         plan_key = u['plan'] or 'free'
         plan_expires_at = u['plan_expires_at']
         is_expired = bool(plan_expires_at and plan_expires_at < today_str)
@@ -430,6 +474,10 @@ def admin_panel():
         if not plan['lifetime'] and u['scans_period'] != current_month:
             scans_used = 0
         monthly_limit = plan['monthly_scans']
+        tx_count = conn.execute(
+            "SELECT COUNT(*) FROM transactions WHERE wallet_id IN (SELECT id FROM wallets WHERE user_id=?)",
+            (u['id'],)
+        ).fetchone()[0]
         user_list.append({
             'id': u['id'],
             'name': u['name'],
@@ -442,6 +490,9 @@ def admin_panel():
             'plan_expires_at': u['plan_expires_at'] or '',
             'is_expired': is_expired,
             'pct': min(100, scans_used * 100 // monthly_limit) if monthly_limit else 100,
+            'is_active': bool(u['is_active']) if u['is_active'] is not None else True,
+            'last_login': u['last_login'] or '–',
+            'tx_count': tx_count,
         })
     stats = {
         'total': len(user_list),
@@ -450,8 +501,13 @@ def admin_panel():
         'befekteto': sum(1 for u in user_list if u['plan'] == 'befekteto'),
         'total_scans': sum(u['scans_used'] for u in user_list),
     }
+    logs = conn.execute(
+        "SELECT al.*, u.name, u.email FROM activity_log al "
+        "LEFT JOIN users u ON al.user_id=u.id "
+        "ORDER BY al.id DESC LIMIT 100"
+    ).fetchall()
     conn.close()
-    return render_template('admin.html', users=user_list, stats=stats, plans=PLANS)
+    return render_template('admin.html', users=user_list, stats=stats, plans=PLANS, logs=logs, q=q)
 
 
 @app.route('/admin/users/<int:uid>/plan', methods=['POST'])
@@ -489,6 +545,83 @@ def admin_add_scans(uid):
     conn.commit()
     conn.close()
     flash(f'{amount} extra beolvasás hozzáadva!', 'success')
+    return redirect(url_for('admin_panel'))
+
+
+@app.route('/admin/users/<int:uid>/toggle-active', methods=['POST'])
+@login_required
+@admin_required
+def admin_toggle_active(uid):
+    conn = get_db()
+    row = conn.execute("SELECT is_active, email FROM users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        conn.close()
+        flash('Felhasználó nem található.', 'danger')
+        return redirect(url_for('admin_panel'))
+    if row['email'] in ADMIN_EMAILS:
+        conn.close()
+        flash('Admin fiók nem tiltható le.', 'danger')
+        return redirect(url_for('admin_panel'))
+    new_state = 0 if row['is_active'] else 1
+    conn.execute("UPDATE users SET is_active=? WHERE id=?", (new_state, uid))
+    conn.commit()
+    conn.close()
+    flash('Fiók ' + ('aktiválva.' if new_state else 'letiltva.'), 'success')
+    return redirect(url_for('admin_panel'))
+
+
+@app.route('/admin/users/<int:uid>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_user(uid):
+    conn = get_db()
+    row = conn.execute("SELECT email FROM users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        conn.close()
+        flash('Felhasználó nem található.', 'danger')
+        return redirect(url_for('admin_panel'))
+    if row['email'] in ADMIN_EMAILS:
+        conn.close()
+        flash('Admin fiók nem törölhető.', 'danger')
+        return redirect(url_for('admin_panel'))
+    wallet_ids = [r[0] for r in conn.execute("SELECT id FROM wallets WHERE user_id=?", (uid,)).fetchall()]
+    if wallet_ids:
+        placeholders = ','.join('?' * len(wallet_ids))
+        tx_ids = [r[0] for r in conn.execute(
+            f"SELECT id FROM transactions WHERE wallet_id IN ({placeholders})", wallet_ids).fetchall()]
+        if tx_ids:
+            conn.execute(f"DELETE FROM transaction_items WHERE transaction_id IN ({','.join('?' * len(tx_ids))})", tx_ids)
+        conn.execute(f"DELETE FROM transactions WHERE wallet_id IN ({placeholders})", wallet_ids)
+        conn.execute(f"DELETE FROM transfers WHERE from_wallet_id IN ({placeholders}) OR to_wallet_id IN ({placeholders})",
+                     wallet_ids + wallet_ids)
+        conn.execute(f"DELETE FROM wallets WHERE id IN ({placeholders})", wallet_ids)
+    conn.execute("DELETE FROM budgets WHERE user_id=?", (uid,))
+    conn.execute("DELETE FROM categories WHERE user_id=?", (uid,))
+    conn.execute("DELETE FROM activity_log WHERE user_id=?", (uid,))
+    conn.execute("DELETE FROM users WHERE id=?", (uid,))
+    conn.commit()
+    conn.close()
+    flash('Felhasználó és összes adata törölve (GDPR).', 'success')
+    return redirect(url_for('admin_panel'))
+
+
+@app.route('/admin/users/<int:uid>/reset-link', methods=['POST'])
+@login_required
+@admin_required
+def admin_reset_link(uid):
+    conn = get_db()
+    row = conn.execute("SELECT id FROM users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        conn.close()
+        flash('Felhasználó nem található.', 'danger')
+        return redirect(url_for('admin_panel'))
+    token = secrets.token_urlsafe(32)
+    expires = (datetime.now() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+    conn.execute("UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?", (token, expires, uid))
+    conn.commit()
+    conn.close()
+    reset_url = url_for('reset_password', token=token, _external=True)
+    flash(f'Jelszó reset link (24 óra): {reset_url}', 'info')
     return redirect(url_for('admin_panel'))
 
 
@@ -573,14 +706,23 @@ def export_account():
 # --- Auth ---
 
 def _finish_oauth_login(conn, row, name):
+    if not row['is_active']:
+        conn.close()
+        flash('Ez a fiók le van tiltva. Lépj kapcsolatba az adminisztrátorral.', 'danger')
+        return False
     user = user_from_row(row)
     login_user(user)
     if user.totp_enabled:
         session['needs_2fa'] = True
     else:
         session.pop('needs_2fa', None)
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    conn.execute("UPDATE users SET last_login=? WHERE id=?", (now, user.id))
+    log_activity(conn, user.id, 'login')
+    conn.commit()
     conn.close()
     flash(f"Üdvözöllek, {name}!", "success")
+    return True
 
 
 @oauth_authorized.connect_via(google_bp)
@@ -694,9 +836,13 @@ def login_email():
     session['auth_tab'] = 'login'
     conn = get_db()
     row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
-    conn.close()
     if not row or not row['password_hash'] or not check_password_hash(row['password_hash'], password):
+        conn.close()
         flash('Hibás email cím vagy jelszó.', 'danger')
+        return redirect(url_for('login_page'))
+    if not row['is_active']:
+        conn.close()
+        flash('Ez a fiók le van tiltva. Lépj kapcsolatba az adminisztrátorral.', 'danger')
         return redirect(url_for('login_page'))
     user = user_from_row(row)
     login_user(user)
@@ -705,6 +851,11 @@ def login_email():
         session['needs_2fa'] = True
     else:
         session.pop('needs_2fa', None)
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    conn.execute("UPDATE users SET last_login=? WHERE id=?", (now, user.id))
+    log_activity(conn, user.id, 'login')
+    conn.commit()
+    conn.close()
     flash(f'Üdvözöllek, {row["name"]}!', 'success')
     return redirect(url_for('index'))
 
@@ -1006,6 +1157,7 @@ def transactions():
             conn.execute(
                 "INSERT INTO transaction_items (transaction_id, description, amount, category_id) VALUES (?, ?, ?, ?)",
                 (tx_id, desc, amt, cat_id))
+        log_activity(conn, uid, 'transaction')
         conn.commit()
         flash('Tranzakció sikeresen hozzáadva!', 'success')
         return redirect(url_for('transactions', wallet=request.form['wallet_id']))
