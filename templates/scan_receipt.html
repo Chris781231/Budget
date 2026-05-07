@@ -15,7 +15,7 @@
             <div class="flex-grow-1" style="min-width:160px;">
                 <div class="d-flex justify-content-between small mb-1">
                     <span>Beolvasások</span>
-                    <span>{{ scan_status.scans_used }} / {{ scan_status.monthly_limit }}{% if scan_status.extra_scans > 0 %} <span class="text-muted">(+{{ scan_status.extra_scans }} extra)</span>{% endif %}</span>
+                    <span>{{ scan_status.scans_used }} / {{ scan_status.monthly_limit + scan_status.extra_scans if scan_status.extra_scans > 0 else scan_status.monthly_limit }}{% if scan_status.extra_scans > 0 %} <span class="text-muted">({{ scan_status.monthly_limit }} csomag + {{ scan_status.extra_scans }} extra)</span>{% endif %}</span>
                 </div>
                 <div class="progress" style="height:6px;">
                     <div class="progress-bar {{ 'bg-danger' if scan_status.at_hard_limit else ('bg-warning' if scan_status.at_soft_limit else 'bg-success') }}"

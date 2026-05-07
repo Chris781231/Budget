@@ -69,7 +69,7 @@
                     </td>
                     <td><small>{{ u.plan_expires_at or '–' }}</small></td>
                     <td>
-                        <span class="small">{{ u.scans_used }} / {{ u.monthly_limit }}</span>
+                        <span class="small">{{ u.scans_used }} / {{ u.monthly_limit + u.extra_scans if u.extra_scans > 0 else u.monthly_limit }}{% if u.extra_scans > 0 %} <span class="text-muted">(+{{ u.extra_scans }})</span>{% endif %}</span>
                         <div class="progress mt-1" style="height:4px;width:70px;">
                             <div class="progress-bar {{ 'bg-danger' if u.pct >= 100 else ('bg-warning' if u.pct >= 80 else 'bg-success') }}"
                                  style="width:{{ u.pct }}%;"></div>

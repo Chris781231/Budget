@@ -32,13 +32,9 @@
                     {% endif %}
                 </div>
                 <p class="mb-1 small fw-semibold">Blokk beolvasás</p>
-                <div class="d-flex justify-content-between small mb-1">
-                    <span>{{ s.scans_used }} / {{ s.monthly_limit }} felhasználva
-                        <span class="text-muted">({{ 'élethosszig' if s.plan_key == 'free' else 'ebben a hónapban' }})</span>
-                    </span>
-                    {% if s.extra_scans > 0 %}
-                    <span class="text-success fw-semibold">+ {{ s.extra_scans }} extra kredit</span>
-                    {% endif %}
+                <div class="small mb-1">
+                    {{ s.scans_used }} / {{ s.monthly_limit + s.extra_scans if s.extra_scans > 0 else s.monthly_limit }} felhasználva
+                    <span class="text-muted">({% if s.extra_scans > 0 %}{{ s.monthly_limit }} csomag + {{ s.extra_scans }} extra, {% endif %}{{ 'élethosszig' if s.plan_key == 'free' else 'ebben a hónapban' }})</span>
                 </div>
                 <div class="progress mb-3" style="height:8px;">
                     <div class="progress-bar {{ 'bg-danger' if s.at_hard_limit else ('bg-warning' if s.at_soft_limit else 'bg-success') }}"
