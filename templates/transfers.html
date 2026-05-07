@@ -47,15 +47,15 @@
 <div class="card shadow-sm">
     <div class="card-header"><i class="bi bi-list-ul"></i> Átutalások</div>
     <div class="card-body p-0">
-        <table class="table table-striped mb-0">
+        <table class="table table-striped mb-0 align-middle">
             <thead>
                 <tr>
                     <th>Dátum</th>
                     <th>Forrás</th>
-                    <th></th>
+                    <th class="d-none d-md-table-cell"></th>
                     <th>Cél</th>
                     <th class="text-end">Összeg</th>
-                    <th>Megjegyzés</th>
+                    <th class="d-none d-md-table-cell">Megjegyzés</th>
                     <th></th>
                 </tr>
             </thead>
@@ -64,18 +64,30 @@
                 <tr>
                     <td>{{ t.date }}</td>
                     <td>{{ t.from_name }}</td>
-                    <td class="text-center text-muted"><i class="bi bi-arrow-right"></i></td>
+                    <td class="text-center text-muted d-none d-md-table-cell"><i class="bi bi-arrow-right"></i></td>
                     <td>{{ t.to_name }}</td>
                     <td class="text-end fw-bold text-primary">{{ "%.0f"|format(t.amount) }} Ft</td>
-                    <td class="text-muted">{{ t.description or '-' }}</td>
+                    <td class="text-muted d-none d-md-table-cell">{{ t.description or '–' }}</td>
                     <td>
-                        <form method="POST" action="/transfers/delete/{{ t.id }}" class="d-inline"
-                              onsubmit="return confirm('Biztosan törlöd ezt az átutalást?')">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-trash"></i>
+                        <div class="d-flex gap-1 justify-content-end">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    data-bs-toggle="modal" data-bs-target="#transferDetailModal"
+                                    data-date="{{ t.date }}"
+                                    data-from="{{ t.from_name }}"
+                                    data-to="{{ t.to_name }}"
+                                    data-amount="{{ '%.0f'|format(t.amount) }}"
+                                    data-desc="{{ t.description or '–' }}"
+                                    title="Megtekintés">
+                                <i class="bi bi-eye"></i>
                             </button>
-                        </form>
+                            <form method="POST" action="/transfers/delete/{{ t.id }}" class="d-inline"
+                                  onsubmit="return confirm('Biztosan törlöd ezt az átutalást?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Törlés">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
@@ -85,6 +97,37 @@
         </table>
     </div>
 </div>
+
+<!-- Átutalás részletei modal -->
+<div class="modal fade" id="transferDetailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-left-right text-primary me-2"></i>Átutalás részletei</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row mb-0">
+                    <dt class="col-4">Dátum</dt>
+                    <dd class="col-8" id="td-date"></dd>
+                    <dt class="col-4">Forrás tárca</dt>
+                    <dd class="col-8" id="td-from"></dd>
+                    <dt class="col-4">Cél tárca</dt>
+                    <dd class="col-8" id="td-to"></dd>
+                    <dt class="col-4">Összeg</dt>
+                    <dd class="col-8 fw-bold text-primary" id="td-amount"></dd>
+                    <dt class="col-4">Megjegyzés</dt>
+                    <dd class="col-8 text-muted" id="td-desc"></dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Bezárás</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block help_content %}
 <h6 class="fw-bold mb-3"><i class="bi bi-arrow-left-right text-primary me-2"></i>Átutalások – Súgó</h6>
 <div class="list-group list-group-flush">
@@ -102,4 +145,16 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('transferDetailModal').addEventListener('show.bs.modal', function(e) {
+    var btn = e.relatedTarget;
+    document.getElementById('td-date').textContent = btn.dataset.date;
+    document.getElementById('td-from').textContent = btn.dataset.from;
+    document.getElementById('td-to').textContent = btn.dataset.to;
+    document.getElementById('td-amount').textContent = btn.dataset.amount + ' Ft';
+    document.getElementById('td-desc').textContent = btn.dataset.desc;
+});
+</script>
 {% endblock %}
