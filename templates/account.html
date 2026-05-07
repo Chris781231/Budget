@@ -19,6 +19,40 @@
         </div>
 
         <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-box-seam"></i> Előfizetés</div>
+            <div class="card-body">
+                {% set s = scan_status %}
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge fs-6 {{ 'bg-secondary' if s.plan_key == 'free' else ('bg-info text-dark' if s.plan_key == 'megtakaritor' else 'bg-primary') }}">
+                        {{ s.plan_display }}
+                    </span>
+                    {% if s.is_expired %}<span class="badge bg-danger">Lejárt</span>{% endif %}
+                    {% if s.plan_expires_at and not s.is_expired %}
+                    <small class="text-muted">Lejár: {{ s.plan_expires_at }}</small>
+                    {% endif %}
+                </div>
+                <p class="mb-1 small fw-semibold">Blokk beolvasás</p>
+                <div class="d-flex justify-content-between small mb-1">
+                    <span>{{ s.scans_used }} / {{ s.monthly_limit }} felhasználva
+                        <span class="text-muted">({{ 'élethosszig' if s.plan_key == 'free' else 'ebben a hónapban' }})</span>
+                    </span>
+                    {% if s.extra_scans > 0 %}
+                    <span class="text-success fw-semibold">+ {{ s.extra_scans }} extra kredit</span>
+                    {% endif %}
+                </div>
+                <div class="progress mb-3" style="height:8px;">
+                    <div class="progress-bar {{ 'bg-danger' if s.at_hard_limit else ('bg-warning' if s.at_soft_limit else 'bg-success') }}"
+                         style="width:{{ s.percent_used }}%;"></div>
+                </div>
+                <div class="alert alert-light border small mb-0 py-2">
+                    <i class="bi bi-info-circle"></i>
+                    Csomag módosításhoz vagy extra beolvasás (10 db / 30 db) igényléséhez
+                    keresd az adminisztrátort. Hamarosan elérhető lesz az önkiszolgáló csomag váltás.
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-palette"></i> Megjelenés</div>
             <div class="card-body">
                 {% set t = current_user.theme or 'original' %}

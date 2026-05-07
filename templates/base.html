@@ -81,6 +81,9 @@
                     <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}" href="/reports"><i class="bi bi-bar-chart"></i> Riportok</a>
                     <a class="nav-link {% if request.endpoint == 'budgets' %}active{% endif %}" href="/budgets"><i class="bi bi-bullseye"></i> Keretek</a>
                     <a class="nav-link {% if request.endpoint == 'scan_receipt' %}active{% endif %}" href="/scan-receipt"><i class="bi bi-camera"></i> Blokk beolvasás</a>
+                    {% if current_user.is_admin %}
+                    <a class="nav-link {% if request.endpoint == 'admin_panel' %}active{% endif %}" href="/admin"><i class="bi bi-gear-fill"></i> Admin</a>
+                    {% endif %}
                     {% endif %}
                 </div>
                 <div class="navbar-nav ms-auto">

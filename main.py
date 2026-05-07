@@ -10,6 +10,7 @@ from flask_wtf.csrf import CSRFProtect
 import sqlite3
 from datetime import datetime
 from werkzeug.middleware.proxy_fix import ProxyFix
+from functools import wraps
 
 if os.environ.get("RAILWAY_ENVIRONMENT") is None:
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -34,11 +35,12 @@ DATABASE = '/data/koltsegvetes.db' if os.environ.get('RAILWAY_ENVIRONMENT') else
 
 
 class User(UserMixin):
-    def __init__(self, id, name, email, theme='original'):
+    def __init__(self, id, name, email, theme='original', is_admin=False):
         self.id = id
         self.name = name
         self.email = email
         self.theme = theme
+        self.is_admin = is_admin
 
 
 @login_manager.user_loader
@@ -47,7 +49,9 @@ def load_user(user_id):
     row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     conn.close()
     if row:
-        return User(row["id"], row["name"], row["email"], row["theme"] if row["theme"] else 'original')
+        return User(row["id"], row["name"], row["email"],
+                    row["theme"] if row["theme"] else 'original',
+                    row["email"] in ADMIN_EMAILS)
     return None
 
 
@@ -93,6 +97,77 @@ def round_to_5(amount):
     n = round(amount)
     r = n % 5
     return n - r if r < 3 else n + (5 - r)
+
+
+ADMIN_EMAILS = [e.strip() for e in os.environ.get('ADMIN_EMAILS', 'ligeti.karoly78@gmail.com').split(',')]
+
+PLANS = {
+    'free':         {'display': 'Zsebpénz',    'monthly_scans': 3,   'lifetime': True},
+    'megtakaritor': {'display': 'Megtakarító', 'monthly_scans': 30,  'lifetime': False},
+    'befekteto':    {'display': 'Befektető',   'monthly_scans': 100, 'lifetime': False},
+}
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('Nincs hozzáférésed ehhez az oldalhoz.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def get_scan_status(conn, user_id):
+    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    plan_key = user['plan'] or 'free'
+    plan_expires_at = user['plan_expires_at']
+    is_expired = bool(plan_expires_at and plan_expires_at < datetime.today().strftime('%Y-%m-%d'))
+    if is_expired and plan_key != 'free':
+        plan_key = 'free'
+    plan = PLANS.get(plan_key, PLANS['free'])
+
+    current_month = datetime.today().strftime('%Y-%m')
+    scans_used = user['scans_used'] or 0
+    extra_scans = user['extra_scans'] or 0
+
+    if not plan['lifetime'] and user['scans_period'] != current_month:
+        conn.execute("UPDATE users SET scans_used=0, scans_period=? WHERE id=?", (current_month, user_id))
+        conn.commit()
+        scans_used = 0
+
+    monthly_limit = plan['monthly_scans']
+    monthly_remaining = max(0, monthly_limit - scans_used)
+    total_remaining = monthly_remaining + extra_scans
+    soft_threshold = monthly_limit * 0.8
+    at_soft_limit = scans_used >= soft_threshold and total_remaining > 0
+    at_hard_limit = total_remaining == 0
+    percent_used = min(100, int(scans_used / monthly_limit * 100)) if monthly_limit else 100
+
+    return {
+        'plan_key': plan_key,
+        'plan_display': plan['display'],
+        'monthly_limit': monthly_limit,
+        'scans_used': scans_used,
+        'extra_scans': extra_scans,
+        'monthly_remaining': monthly_remaining,
+        'total_remaining': total_remaining,
+        'at_soft_limit': at_soft_limit,
+        'at_hard_limit': at_hard_limit,
+        'percent_used': percent_used,
+        'plan_expires_at': plan_expires_at,
+        'is_expired': is_expired,
+    }
+
+
+def increment_scan_used(conn, user_id, status):
+    current_month = datetime.today().strftime('%Y-%m')
+    if status['extra_scans'] > 0 and status['monthly_remaining'] == 0:
+        conn.execute("UPDATE users SET extra_scans=extra_scans-1 WHERE id=?", (user_id,))
+    else:
+        conn.execute("UPDATE users SET scans_used=scans_used+1, scans_period=? WHERE id=?",
+                     (current_month, user_id))
+    conn.commit()
 
 
 def setup_new_user(conn, user_id):
@@ -212,6 +287,18 @@ def init_db():
     except Exception:
         pass
 
+    for col in [
+        "plan TEXT DEFAULT 'free'",
+        "plan_expires_at TEXT",
+        "scans_used INTEGER DEFAULT 0",
+        "scans_period TEXT",
+        "extra_scans INTEGER DEFAULT 0",
+    ]:
+        try:
+            c.execute(f"ALTER TABLE users ADD COLUMN {col}")
+        except Exception:
+            pass
+
     conn.commit()
     conn.close()
 
@@ -226,7 +313,10 @@ def privacy():
 @app.route('/account')
 @login_required
 def account():
-    return render_template('account.html')
+    conn = get_db()
+    scan_status = get_scan_status(conn, current_user.id)
+    conn.close()
+    return render_template('account.html', scan_status=scan_status)
 
 
 @app.route('/account/theme', methods=['POST'])
@@ -242,6 +332,88 @@ def update_theme():
     current_user.theme = theme
     flash('Téma sikeresen módosítva!', 'success')
     return redirect(url_for('account'))
+
+
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_panel():
+    conn = get_db()
+    users = conn.execute("SELECT * FROM users ORDER BY id").fetchall()
+    current_month = datetime.today().strftime('%Y-%m')
+    today_str = datetime.today().strftime('%Y-%m-%d')
+    user_list = []
+    for u in users:
+        plan_key = u['plan'] or 'free'
+        plan_expires_at = u['plan_expires_at']
+        is_expired = bool(plan_expires_at and plan_expires_at < today_str)
+        if is_expired and plan_key != 'free':
+            plan_key = 'free'
+        plan = PLANS.get(plan_key, PLANS['free'])
+        scans_used = u['scans_used'] or 0
+        if not plan['lifetime'] and u['scans_period'] != current_month:
+            scans_used = 0
+        monthly_limit = plan['monthly_scans']
+        user_list.append({
+            'id': u['id'],
+            'name': u['name'],
+            'email': u['email'],
+            'plan': plan_key,
+            'plan_display': plan['display'],
+            'monthly_limit': monthly_limit,
+            'scans_used': scans_used,
+            'extra_scans': u['extra_scans'] or 0,
+            'plan_expires_at': u['plan_expires_at'] or '',
+            'is_expired': is_expired,
+            'pct': min(100, scans_used * 100 // monthly_limit) if monthly_limit else 100,
+        })
+    stats = {
+        'total': len(user_list),
+        'free': sum(1 for u in user_list if u['plan'] == 'free'),
+        'megtakaritor': sum(1 for u in user_list if u['plan'] == 'megtakaritor'),
+        'befekteto': sum(1 for u in user_list if u['plan'] == 'befekteto'),
+        'total_scans': sum(u['scans_used'] for u in user_list),
+    }
+    conn.close()
+    return render_template('admin.html', users=user_list, stats=stats, plans=PLANS)
+
+
+@app.route('/admin/users/<int:uid>/plan', methods=['POST'])
+@login_required
+@admin_required
+def admin_set_plan(uid):
+    plan = request.form.get('plan', 'free')
+    if plan not in PLANS:
+        flash('Érvénytelen csomag.', 'danger')
+        return redirect(url_for('admin_panel'))
+    expires_at = request.form.get('expires_at', '').strip() or None
+    conn = get_db()
+    conn.execute(
+        "UPDATE users SET plan=?, plan_expires_at=?, scans_used=0, scans_period=? WHERE id=?",
+        (plan, expires_at, datetime.today().strftime('%Y-%m'), uid))
+    conn.commit()
+    conn.close()
+    flash('Csomag sikeresen módosítva!', 'success')
+    return redirect(url_for('admin_panel'))
+
+
+@app.route('/admin/users/<int:uid>/add-scans', methods=['POST'])
+@login_required
+@admin_required
+def admin_add_scans(uid):
+    try:
+        amount = int(request.form.get('amount', 0))
+    except (ValueError, TypeError):
+        amount = 0
+    if amount not in (10, 30):
+        flash('Érvénytelen mennyiség.', 'danger')
+        return redirect(url_for('admin_panel'))
+    conn = get_db()
+    conn.execute("UPDATE users SET extra_scans=extra_scans+? WHERE id=?", (amount, uid))
+    conn.commit()
+    conn.close()
+    flash(f'{amount} extra beolvasás hozzáadva!', 'success')
+    return redirect(url_for('admin_panel'))
 
 
 @app.route('/account/delete', methods=['POST'])
@@ -976,17 +1148,24 @@ def reports():
 def scan_receipt():
     conn = get_db()
     uid = current_user.id
+    scan_status = get_scan_status(conn, uid)
     wallets = conn.execute("SELECT * FROM wallets WHERE user_id=? ORDER BY sort_order", (uid,)).fetchall()
     categories = conn.execute(
         "SELECT * FROM categories WHERE user_id=? AND type='expense' ORDER BY name", (uid,)).fetchall()
-    conn.close()
     today = datetime.today().strftime('%Y-%m-%d')
 
     if request.method == 'POST':
+        if scan_status['at_hard_limit']:
+            conn.close()
+            return render_template('scan_receipt.html', wallets=wallets, categories=categories,
+                                   today=today, scan_status=scan_status)
+
         files = request.files.getlist('receipt_images')
         if not files or all(f.filename == '' for f in files):
             flash('Legalább egy képet tölts fel!', 'danger')
-            return render_template('scan_receipt.html', wallets=wallets, categories=categories, today=today)
+            conn.close()
+            return render_template('scan_receipt.html', wallets=wallets, categories=categories,
+                                   today=today, scan_status=scan_status)
 
         images = []
         for f in files:
@@ -998,21 +1177,29 @@ def scan_receipt():
             result = scan_receipt_images(images)
         except Exception as e:
             flash(f'Hiba a blokk beolvasásakor: {e}', 'danger')
-            return render_template('scan_receipt.html', wallets=wallets, categories=categories, today=today)
+            conn.close()
+            return render_template('scan_receipt.html', wallets=wallets, categories=categories,
+                                   today=today, scan_status=scan_status)
+
+        increment_scan_used(conn, uid, scan_status)
+        scan_status = get_scan_status(conn, uid)
 
         items = result.get('tetelek', [])
         vegosszeg = result.get('vegosszeg', 0) or 0
         items_sum = sum(i.get('amount', 0) for i in items)
         mismatch = abs(items_sum - vegosszeg) > 1 if vegosszeg else False
         selected_wallet = request.form.get('wallet_id')
-
+        conn.close()
         return render_template('scan_receipt.html',
             wallets=wallets, categories=categories, today=today,
             scan_result=result, items=items, vegosszeg=vegosszeg,
             items_sum=items_sum, mismatch=mismatch,
-            selected_wallet=int(selected_wallet) if selected_wallet else None)
+            selected_wallet=int(selected_wallet) if selected_wallet else None,
+            scan_status=scan_status)
 
-    return render_template('scan_receipt.html', wallets=wallets, categories=categories, today=today)
+    conn.close()
+    return render_template('scan_receipt.html', wallets=wallets, categories=categories,
+                           today=today, scan_status=scan_status)
 
 
 @app.route('/scan-receipt/save', methods=['POST'])
