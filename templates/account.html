@@ -49,6 +49,41 @@
         </div>
 
         <div class="card shadow-sm mb-4">
+            <div class="card-header"><i class="bi bi-key"></i> Jelszó</div>
+            <div class="card-body">
+                {% set has_pw = has_password %}
+                <p class="text-muted small mb-3">
+                    {% if has_pw %}Módosítsd az email+jelszó bejelentkezéshez használt jelszavadat.
+                    {% else %}Állíts be jelszót, hogy email+jelszó kombinációval is bejelentkezhess.{% endif %}
+                </p>
+                <form method="POST" action="{{ url_for('set_password') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-2">
+                        {% if has_pw %}
+                        <div class="col-12">
+                            <input type="password" name="current_password" class="form-control form-control-sm"
+                                   placeholder="Jelenlegi jelszó" required>
+                        </div>
+                        {% endif %}
+                        <div class="col-sm-6">
+                            <input type="password" name="new_password" class="form-control form-control-sm"
+                                   placeholder="Új jelszó (min. 8 karakter)" required minlength="8">
+                        </div>
+                        <div class="col-sm-6">
+                            <input type="password" name="confirm_password" class="form-control form-control-sm"
+                                   placeholder="Jelszó megerősítése" required>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-key me-1"></i> {{ 'Jelszó módosítása' if has_pw else 'Jelszó beállítása' }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
             <div class="card-header"><i class="bi bi-shield-lock"></i> Kétlépéses hitelesítés (2FA)</div>
             <div class="card-body">
                 {% if current_user.totp_enabled %}

@@ -14,6 +14,7 @@ import pyotp
 import qrcode
 from datetime import datetime
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
 if os.environ.get("RAILWAY_ENVIRONMENT") is None:
@@ -329,6 +330,7 @@ def init_db():
         "apple_id TEXT",
         "totp_secret TEXT",
         "totp_enabled INTEGER DEFAULT 0",
+        "password_hash TEXT",
     ]:
         try:
             c.execute(f"ALTER TABLE users ADD COLUMN {col}")
@@ -351,8 +353,10 @@ def privacy():
 def account():
     conn = get_db()
     scan_status = get_scan_status(conn, current_user.id)
+    row = conn.execute("SELECT password_hash FROM users WHERE id=?", (current_user.id,)).fetchone()
+    has_password = bool(row and row['password_hash'])
     conn.close()
-    return render_template('account.html', scan_status=scan_status)
+    return render_template('account.html', scan_status=scan_status, has_password=has_password)
 
 
 @app.route('/account/theme', methods=['POST'])
@@ -610,6 +614,90 @@ def github_logged_in(blueprint, token):
         conn.commit()
     _finish_oauth_login(conn, row, name)
     return False
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    name = request.form.get('name', '').strip()
+    email = request.form.get('email', '').strip().lower()
+    password = request.form.get('password', '')
+    confirm = request.form.get('confirm_password', '')
+    session['auth_tab'] = 'register'
+    if not name or not email or not password:
+        flash('Minden mező kitöltése kötelező.', 'danger')
+        return redirect(url_for('login_page'))
+    if len(password) < 8:
+        flash('A jelszónak legalább 8 karakter hosszúnak kell lennie.', 'danger')
+        return redirect(url_for('login_page'))
+    if password != confirm:
+        flash('A két jelszó nem egyezik.', 'danger')
+        return redirect(url_for('login_page'))
+    conn = get_db()
+    if conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone():
+        conn.close()
+        flash('Ez az email cím már regisztrált. Jelentkezz be Google, GitHub vagy email+jelszó kombinációval.', 'danger')
+        return redirect(url_for('login_page'))
+    conn.execute("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                 (name, email, generate_password_hash(password)))
+    conn.commit()
+    row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    setup_new_user(conn, row["id"])
+    conn.commit()
+    session.pop('auth_tab', None)
+    login_user(user_from_row(row))
+    session.pop('needs_2fa', None)
+    conn.close()
+    flash(f'Üdvözlünk, {name}! A fiókod sikeresen létrejött.', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/login/email', methods=['POST'])
+def login_email():
+    email = request.form.get('email', '').strip().lower()
+    password = request.form.get('password', '')
+    session['auth_tab'] = 'login'
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    conn.close()
+    if not row or not row['password_hash'] or not check_password_hash(row['password_hash'], password):
+        flash('Hibás email cím vagy jelszó.', 'danger')
+        return redirect(url_for('login_page'))
+    user = user_from_row(row)
+    login_user(user)
+    session.pop('auth_tab', None)
+    if user.totp_enabled:
+        session['needs_2fa'] = True
+    else:
+        session.pop('needs_2fa', None)
+    flash(f'Üdvözöllek, {row["name"]}!', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/account/password', methods=['POST'])
+@login_required
+def set_password():
+    new_password = request.form.get('new_password', '')
+    confirm = request.form.get('confirm_password', '')
+    if len(new_password) < 8:
+        flash('A jelszónak legalább 8 karakter hosszúnak kell lennie.', 'danger')
+        return redirect(url_for('account'))
+    if new_password != confirm:
+        flash('A két jelszó nem egyezik.', 'danger')
+        return redirect(url_for('account'))
+    conn = get_db()
+    row = conn.execute("SELECT password_hash FROM users WHERE id=?", (current_user.id,)).fetchone()
+    if row['password_hash']:
+        current_password = request.form.get('current_password', '')
+        if not check_password_hash(row['password_hash'], current_password):
+            flash('Hibás jelenlegi jelszó.', 'danger')
+            conn.close()
+            return redirect(url_for('account'))
+    conn.execute("UPDATE users SET password_hash=? WHERE id=?",
+                 (generate_password_hash(new_password), current_user.id))
+    conn.commit()
+    conn.close()
+    flash('Jelszó sikeresen beállítva!', 'success')
+    return redirect(url_for('account'))
 
 
 @app.route('/login')

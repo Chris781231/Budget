@@ -430,41 +430,116 @@
         </div>
     </footer>
 
-    <!-- Login Modal -->
-    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel">
+    <!-- Login / Register Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow-lg">
-                <div class="modal-body text-center p-5">
+                <div class="modal-body p-4 p-sm-5">
                     <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
-                    <i class="bi bi-wallet2 text-primary" style="font-size:2.8rem;"></i>
-                    <h4 class="mt-3 mb-1 fw-bold">Üdvözlünk!</h4>
-                    <p class="text-muted mb-4 small">Jelentkezz be a Google-fiókoddal a folytatáshoz.</p>
-                    <div class="gdpr-box text-start mb-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="gdpr-consent">
-                            <label class="form-check-label small" for="gdpr-consent">
-                                Elolvastam és elfogadom az
-                                <a href="{{ url_for('privacy') }}" target="_blank">adatkezelési tájékoztatót</a>,
-                                és hozzájárulok adataim kezeléséhez.
-                            </label>
-                        </div>
+
+                    <div class="text-center mb-4">
+                        <i class="bi bi-wallet2 text-primary" style="font-size:2.4rem;"></i>
+                        <h4 class="mt-2 mb-0 fw-bold">Költségvetés</h4>
                     </div>
-                    <div id="oauth-btns" style="pointer-events:none; opacity:0.45;">
-                        <a href="{{ url_for('google.login') }}" class="btn btn-outline-danger btn-lg w-100 fw-bold mb-2">
-                            <svg class="me-2" width="20" height="20" viewBox="0 0 48 48">
-                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                            </svg>
-                            Bejelentkezés Google-fiókkal
-                        </a>
-                        <a href="{{ url_for('github.login') }}" class="btn btn-dark btn-lg w-100 fw-bold">
-                            <svg class="me-2" width="20" height="20" viewBox="0 0 24 24" fill="white">
-                                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .319.216.694.825.576C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/>
-                            </svg>
-                            Bejelentkezés GitHub-fiókkal
-                        </a>
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    {% for cat, msg in messages %}
+                    <div class="alert alert-{{ cat }} py-2 small mb-3">{{ msg }}</div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- Tabs -->
+                    <ul class="nav nav-pills nav-fill mb-4" id="authTabs">
+                        <li class="nav-item">
+                            <button class="nav-link active fw-bold" id="login-tab" data-bs-toggle="pill" data-bs-target="#loginPane">
+                                Bejelentkezés
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold" id="register-tab" data-bs-toggle="pill" data-bs-target="#registerPane">
+                                Regisztráció
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Login tab -->
+                        <div class="tab-pane fade show active" id="loginPane">
+                            <!-- Social -->
+                            <div class="gdpr-box mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="gdpr-consent">
+                                    <label class="form-check-label small" for="gdpr-consent">
+                                        Elfogadom az <a href="{{ url_for('privacy') }}" target="_blank">adatkezelési tájékoztatót</a>.
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="oauth-btns" style="pointer-events:none; opacity:0.45;">
+                                <a href="{{ url_for('google.login') }}" class="btn btn-outline-danger w-100 fw-bold mb-2">
+                                    <svg class="me-2" width="18" height="18" viewBox="0 0 48 48">
+                                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                                    </svg>
+                                    Folytatás Google-fiókkal
+                                </a>
+                                <a href="{{ url_for('github.login') }}" class="btn btn-dark w-100 fw-bold">
+                                    <svg class="me-2" width="18" height="18" viewBox="0 0 24 24" fill="white">
+                                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .319.216.694.825.576C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/>
+                                    </svg>
+                                    Folytatás GitHub-fiókkal
+                                </a>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 my-3">
+                                <hr class="flex-grow-1 m-0"><span class="text-muted small">vagy</span><hr class="flex-grow-1 m-0">
+                            </div>
+                            <!-- Email login -->
+                            <form method="POST" action="{{ url_for('login_email') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="mb-2">
+                                    <input type="email" name="email" class="form-control" placeholder="Email cím" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" name="password" class="form-control" placeholder="Jelszó" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i> Bejelentkezés
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Register tab -->
+                        <div class="tab-pane fade" id="registerPane">
+                            <form method="POST" action="{{ url_for('register') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="mb-2">
+                                    <input type="text" name="name" class="form-control" placeholder="Teljes név" required>
+                                </div>
+                                <div class="mb-2">
+                                    <input type="email" name="email" class="form-control" placeholder="Email cím" required>
+                                </div>
+                                <div class="mb-2">
+                                    <input type="password" name="password" class="form-control" placeholder="Jelszó (min. 8 karakter)" required minlength="8">
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" name="confirm_password" class="form-control" placeholder="Jelszó megerősítése" required>
+                                </div>
+                                <div class="gdpr-box mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="gdpr-reg" required>
+                                        <label class="form-check-label small" for="gdpr-reg">
+                                            Elfogadom az <a href="{{ url_for('privacy') }}" target="_blank">adatkezelési tájékoztatót</a>.
+                                        </label>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                    <i class="bi bi-person-plus me-1"></i> Fiók létrehozása
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -473,17 +548,30 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.getElementById('gdpr-consent').addEventListener('change', function () {
-            const btns = document.getElementById('oauth-btns');
-            btns.style.pointerEvents = this.checked ? 'auto' : 'none';
-            btns.style.opacity = this.checked ? '1' : '0.45';
+        const gdpr = document.getElementById('gdpr-consent');
+        const oauthBtns = document.getElementById('oauth-btns');
+        gdpr.addEventListener('change', function () {
+            oauthBtns.style.pointerEvents = this.checked ? 'auto' : 'none';
+            oauthBtns.style.opacity = this.checked ? '1' : '0.45';
         });
+
         document.querySelectorAll('a[href^="#"]').forEach(a => {
             a.addEventListener('click', e => {
                 const target = document.querySelector(a.getAttribute('href'));
                 if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
             });
         });
+
+        // Auto-open modal and switch tab if redirected back with flash messages
+        const authTab = "{{ session.get('auth_tab', '') }}";
+        const hasMessages = {{ 'true' if get_flashed_messages() else 'false' }};
+        if (hasMessages || authTab) {
+            const modal = new bootstrap.Modal(document.getElementById('loginModal'));
+            modal.show();
+            if (authTab === 'register') {
+                document.getElementById('register-tab').click();
+            }
+        }
     </script>
 </body>
 </html>
