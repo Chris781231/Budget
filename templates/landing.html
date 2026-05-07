@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Költségvetés – Okos személyes pénzügyek</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: 'Open Sans', sans-serif; color: #1a1a2e; margin: 0; }
+        h1,h2,h3,h4,h5,h6,.btn,.navbar-brand { font-family: 'Nunito', sans-serif; }
+
+        /* Navbar */
+        .landing-nav {
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.07);
+            padding: 14px 0;
+        }
+        .brand-name { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1.25rem; color: #1a1a2e; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #1565c0 0%, #0d6efd 45%, #6610f2 100%);
+            padding: 90px 0 80px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.6rem);
+            font-weight: 900;
+            line-height: 1.12;
+            letter-spacing: -0.5px;
+        }
+        .hero .lead { font-size: 1.15rem; opacity: 0.9; line-height: 1.7; }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 50px; padding: 6px 14px; font-size: 0.82rem;
+            margin-bottom: 24px;
+        }
+
+        /* App mockup */
+        .app-mockup {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1);
+            overflow: hidden;
+            max-width: 380px;
+            width: 100%;
+        }
+        .mockup-topbar {
+            background: linear-gradient(90deg, #0d6efd, #0a58ca);
+            padding: 12px 16px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .mockup-topbar .brand { color: white; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; }
+        .mockup-dots { display: flex; gap: 5px; margin-left: auto; }
+        .mockup-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); }
+        .mockup-body { padding: 20px; }
+        .mockup-balance-card {
+            background: linear-gradient(135deg, #e8f0fe, #dbeafe);
+            border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 16px;
+        }
+        .mockup-balance-label { font-size: 0.72rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mockup-balance-amount { font-family: 'Nunito', sans-serif; font-size: 1.8rem; font-weight: 800; color: #0d6efd; }
+        .mockup-tx { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.83rem; }
+        .mockup-tx:last-child { border-bottom: none; }
+        .mockup-tx .name { color: #444; }
+        .mockup-tx .exp { color: #dc3545; font-weight: 700; font-family: 'Nunito', sans-serif; }
+        .mockup-tx .inc { color: #198754; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+        /* Stats strip */
+        .stats-strip { background: white; padding: 28px 0; border-bottom: 1px solid #f0f0f0; }
+        .stat-item { text-align: center; }
+        .stat-number { font-family: 'Nunito', sans-serif; font-size: 2rem; font-weight: 900; color: #0d6efd; }
+        .stat-label { font-size: 0.82rem; color: #6c757d; }
+
+        /* Features */
+        .features { padding: 88px 0; background: #f8f9ff; }
+        .section-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #0d6efd; margin-bottom: 10px; }
+        .section-title { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; }
+        .feature-card {
+            background: white;
+            border-radius: 18px;
+            padding: 30px 24px;
+            border: 1.5px solid rgba(13,110,253,0.08);
+            height: 100%;
+            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 16px 40px rgba(13,110,253,0.1);
+            border-color: rgba(13,110,253,0.2);
+        }
+        .feature-icon {
+            width: 52px; height: 52px; border-radius: 14px;
+            background: linear-gradient(135deg, #e8f0fe, #d1e3ff);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; color: #0d6efd; margin-bottom: 18px;
+        }
+        .feature-card h5 { font-weight: 800; font-size: 1rem; margin-bottom: 8px; }
+        .feature-card p { color: #6c757d; font-size: 0.875rem; line-height: 1.6; margin: 0; }
+
+        /* Steps */
+        .steps { padding: 88px 0; }
+        .step-wrap { position: relative; }
+        .step-number {
+            width: 52px; height: 52px; border-radius: 50%;
+            background: linear-gradient(135deg, #0d6efd, #6610f2);
+            color: white; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 1.3rem;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px; box-shadow: 0 8px 20px rgba(13,110,253,0.3);
+        }
+        .step-wrap h5 { font-weight: 800; }
+        .step-wrap p { color: #6c757d; font-size: 0.875rem; line-height: 1.65; }
+
+        /* Pricing */
+        .pricing { padding: 88px 0; background: #f8f9ff; }
+        .price-card {
+            background: white;
+            border-radius: 22px;
+            padding: 38px 30px;
+            border: 2px solid #e9ecef;
+            height: 100%;
+            transition: transform .25s, box-shadow .25s;
+        }
+        .price-card:hover { transform: translateY(-5px); box-shadow: 0 20px 48px rgba(0,0,0,0.09); }
+        .price-card.featured {
+            background: linear-gradient(145deg, #0d6efd 0%, #0a58ca 60%, #084298 100%);
+            border-color: transparent;
+            color: white;
+            transform: translateY(-10px);
+            box-shadow: 0 28px 56px rgba(13,110,253,0.35);
+        }
+        .price-card.featured:hover { transform: translateY(-15px); box-shadow: 0 36px 64px rgba(13,110,253,0.4); }
+        .plan-badge {
+            display: inline-block; font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            padding: 4px 12px; border-radius: 50px; margin-bottom: 20px;
+        }
+        .price-card .price-amount { font-family: 'Nunito', sans-serif; font-size: 2.6rem; font-weight: 900; line-height: 1; }
+        .price-card .price-note { font-size: 0.82rem; margin-top: 6px; margin-bottom: 28px; }
+        .price-card ul { list-style: none; padding: 0; margin: 0 0 28px; }
+        .price-card ul li { padding: 7px 0; font-size: 0.875rem; display: flex; align-items: center; gap: 8px; }
+        .price-card ul li i { font-size: 15px; flex-shrink: 0; }
+        .featured ul li { color: rgba(255,255,255,0.9); }
+        .featured .price-note { color: rgba(255,255,255,0.7); }
+        .featured .plan-badge { background: rgba(255,255,255,0.2); color: white; }
+
+        /* CTA */
+        .cta-section {
+            padding: 100px 0;
+            background: linear-gradient(135deg, #1565c0 0%, #0d6efd 50%, #6610f2 100%);
+            color: white; text-align: center; position: relative; overflow: hidden;
+        }
+        .cta-section::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .cta-section h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 900; position: relative; }
+        .cta-section p { font-size: 1.1rem; opacity: 0.9; position: relative; }
+        .cta-section .btn { position: relative; }
+
+        /* Footer */
+        footer { background: #0f1117; color: rgba(255,255,255,0.5); padding: 28px 0; font-size: 0.83rem; }
+        footer a { color: rgba(255,255,255,0.5); text-decoration: none; transition: color .2s; }
+        footer a:hover { color: white; }
+
+        /* Login modal */
+        .modal-content { border-radius: 22px !important; overflow: hidden; border: none; }
+        .gdpr-box { background: #f8f9ff; border-radius: 12px; padding: 14px 16px; border: 1px solid #e0e8ff; }
+
+        /* Util */
+        .text-gradient { background: linear-gradient(135deg, #0d6efd, #6610f2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="landing-nav sticky-top">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a class="text-decoration-none d-flex align-items-center gap-2" href="/">
+                <i class="bi bi-wallet2 text-primary fs-5"></i>
+                <span class="brand-name">Költségvetés</span>
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <a href="#pricing" class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex">Csomagok</a>
+                <button class="btn btn-primary px-4" data-bs-toggle="modal" data-bs-target="#loginModal">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Bejelentkezés
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container position-relative">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6">
+                    <div class="hero-badge">
+                        <i class="bi bi-stars"></i>
+                        <span>AI-alapú blokk beolvasás</span>
+                    </div>
+                    <h1 class="mb-4">Vedd kézbe<br>a pénzügyeidet</h1>
+                    <p class="lead mb-5">Egyszerű, átlátható személyes pénzügyi nyilvántartás.<br>Rögzíts, elemezz, tervezz — bármikor, bárhol.</p>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <button class="btn btn-light btn-lg fw-bold px-5 shadow-sm" data-bs-toggle="modal" data-bs-target="#loginModal">
+                            Kezdd el ingyen <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                        <a href="#features" class="btn btn-outline-light btn-lg px-4">Funkciók <i class="bi bi-chevron-down ms-1"></i></a>
+                    </div>
+                    <p class="mt-4 small d-flex align-items-center gap-3 flex-wrap" style="opacity:.7;">
+                        <span><i class="bi bi-check-circle me-1"></i>Ingyenes belépés</span>
+                        <span><i class="bi bi-check-circle me-1"></i>Google-fiókkal</span>
+                        <span><i class="bi bi-check-circle me-1"></i>Nincs hitelkártya</span>
+                    </p>
+                </div>
+                <div class="col-lg-6 d-none d-lg-flex justify-content-center justify-content-lg-end">
+                    <div class="app-mockup">
+                        <div class="mockup-topbar">
+                            <i class="bi bi-wallet2" style="color:white;font-size:16px;"></i>
+                            <span class="brand">Költségvetés</span>
+                            <div class="mockup-dots"><span></span><span></span><span></span></div>
+                        </div>
+                        <div class="mockup-body">
+                            <div class="mockup-balance-card">
+                                <div class="mockup-balance-label">Összes egyenleg</div>
+                                <div class="mockup-balance-amount">847 320 Ft</div>
+                            </div>
+                            <div class="mockup-tx"><span class="name">☕ Kávé – Starbucks</span><span class="exp">−680 Ft</span></div>
+                            <div class="mockup-tx"><span class="name">🛒 Lidl – bevásárlás</span><span class="exp">−12 450 Ft</span></div>
+                            <div class="mockup-tx"><span class="name">💼 Havi fizetés</span><span class="inc">+480 000 Ft</span></div>
+                            <div class="mockup-tx"><span class="name">🚗 Üzemanyag</span><span class="exp">−18 750 Ft</span></div>
+                            <div class="mockup-tx"><span class="name">🎬 Netflix</span><span class="exp">−4 990 Ft</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="text-center mb-5">
+                <div class="section-label">Funkciók</div>
+                <h2 class="section-title mb-3">Minden, amire szükséged van</h2>
+                <p class="text-muted mx-auto" style="max-width:480px;">Nem több, nem kevesebb — csak az, amit valóban használsz, nap mint nap.</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-sm-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="bi bi-list-check"></i></div>
+                        <h5>Tranzakció rögzítés</h5>
+                        <p>Bevételek és kiadások rögzítése kategóriákkal, tárcákkal és tételszintű bontással. Szűrés, keresés, lapozás.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="bi bi-camera"></i></div>
+                        <h5>AI blokk beolvasás</h5>
+                        <p>Fotózd le a blokkot — a mesterséges intelligencia automatikusan azonosítja a tételeket és összeget.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="bi bi-bar-chart"></i></div>
+                        <h5>Riportok és grafikonok</h5>
+                        <p>Havi összesítők, kategória-bontás sávdiagrammal és fánkdiagrammal. Szűrhető időszakra és kategóriára.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="bi bi-bullseye"></i></div>
+                        <h5>Havi keretek</h5>
+                        <p>Állíts be kategóriánkénti büdzsét és kövesd nyomon, mennyit költöttél — vizuális progress barral.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="bi bi-wallet2"></i></div>
+                        <h5>Több tárca</h5>
+                        <p>Bankszámla, készpénz, megtakarítás — kezeld mindet egy helyen, automatikus 5 Ft-os kerekítéssel.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="bi bi-shield-check"></i></div>
+                        <h5>Adatbiztonság és export</h5>
+                        <p>Az adataid csak a tieid. Exportáld ZIP/CSV formátumban bármikor, vagy töröld a fiókod egy kattintással.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="steps" id="how-it-works">
+        <div class="container">
+            <div class="text-center mb-5">
+                <div class="section-label">Hogyan működik</div>
+                <h2 class="section-title mb-3">Három lépés az induláshoz</h2>
+                <p class="text-muted">Nincs telepítés, nincs bonyolult beállítás — azonnal kezdhetsz.</p>
+            </div>
+            <div class="row g-4 text-center">
+                <div class="col-md-4">
+                    <div class="step-wrap">
+                        <div class="step-number">1</div>
+                        <h5>Jelentkezz be</h5>
+                        <p class="text-muted">Egy kattintás a Google-fiókoddal — jelszó és regisztrációs form nélkül.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="step-wrap">
+                        <div class="step-number">2</div>
+                        <h5>Hozd létre a tárcáidat</h5>
+                        <p class="text-muted">Adj meg egy-két tárcát (bankszámla, készpénz), és máris rögzítheted az első tranzakciót.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="step-wrap">
+                        <div class="step-number">3</div>
+                        <h5>Kövesd a pénzügyeidet</h5>
+                        <p class="text-muted">Rögzíts kézzel vagy fotózd le a blokkot — a riportok automatikusan frissülnek.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="text-center mb-5">
+                <div class="section-label">Csomagok</div>
+                <h2 class="section-title mb-3">Válassz csomagot</h2>
+                <p class="text-muted mx-auto" style="max-width:480px;">Kezdd ingyenesen. Váltj magasabb csomagra, ha több AI beolvasásra van szükséged.</p>
+            </div>
+            <div class="row g-4 justify-content-center align-items-start">
+                <div class="col-md-4 col-lg-3">
+                    <div class="price-card">
+                        <span class="plan-badge bg-secondary text-white">Zsebpénz</span>
+                        <div class="price-amount">Ingyenes</div>
+                        <p class="price-note text-muted">Örökre ingyenes · nincs hitelkártya</p>
+                        <ul class="mb-4">
+                            <li><i class="bi bi-check-circle-fill text-success"></i>3 AI blokk beolvasás</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Korlátlan tranzakció</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Több tárca</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Riportok és grafikonok</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Havi keretek</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Adatexport</li>
+                        </ul>
+                        <button class="btn btn-outline-primary w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#loginModal">
+                            Kezdd el ingyen
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <div class="price-card featured">
+                        <span class="plan-badge">⭐ Megtakarító</span>
+                        <div class="price-amount">Hamarosan</div>
+                        <p class="price-note">30 beolvasás havonta</p>
+                        <ul class="mb-4">
+                            <li><i class="bi bi-check-circle-fill"></i>30 AI blokk beolvasás / hó</li>
+                            <li><i class="bi bi-check-circle-fill"></i>Korlátlan tranzakció</li>
+                            <li><i class="bi bi-check-circle-fill"></i>Több tárca</li>
+                            <li><i class="bi bi-check-circle-fill"></i>Riportok és grafikonok</li>
+                            <li><i class="bi bi-check-circle-fill"></i>Havi keretek</li>
+                            <li><i class="bi bi-check-circle-fill"></i>Adatexport</li>
+                            <li><i class="bi bi-check-circle-fill"></i>Extra kreditek vásárlása</li>
+                        </ul>
+                        <button class="btn btn-light w-100 fw-bold" disabled>Hamarosan elérhető</button>
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <div class="price-card">
+                        <span class="plan-badge bg-primary text-white">Befektető</span>
+                        <div class="price-amount">Hamarosan</div>
+                        <p class="price-note text-muted">100 beolvasás havonta</p>
+                        <ul class="mb-4">
+                            <li><i class="bi bi-check-circle-fill text-success"></i>100 AI blokk beolvasás / hó</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Korlátlan tranzakció</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Több tárca</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Riportok és grafikonok</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Havi keretek</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Adatexport</li>
+                            <li><i class="bi bi-check-circle-fill text-success"></i>Extra kreditek vásárlása</li>
+                        </ul>
+                        <button class="btn btn-outline-primary w-100 fw-bold" disabled>Hamarosan elérhető</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+        <div class="container">
+            <h2 class="mb-3">Készen állsz?</h2>
+            <p class="lead mb-5">Csatlakozz és kezdd el nyomon követni a pénzügyeidet — most, ingyen.</p>
+            <button class="btn btn-light btn-lg fw-bold px-5 shadow" data-bs-toggle="modal" data-bs-target="#loginModal">
+                <svg class="me-2" width="20" height="20" viewBox="0 0 48 48">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                Bejelentkezés Google-fiókkal
+            </button>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <span><i class="bi bi-wallet2 me-1"></i> Költségvetés · Ligeti Károly · 2026</span>
+            <a href="{{ url_for('privacy') }}"><i class="bi bi-shield-check me-1"></i> Adatkezelési tájékoztató</a>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-body text-center p-5">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+                    <i class="bi bi-wallet2 text-primary" style="font-size:2.8rem;"></i>
+                    <h4 class="mt-3 mb-1 fw-bold">Üdvözlünk!</h4>
+                    <p class="text-muted mb-4 small">Jelentkezz be a Google-fiókoddal a folytatáshoz.</p>
+                    <div class="gdpr-box text-start mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="gdpr-consent">
+                            <label class="form-check-label small" for="gdpr-consent">
+                                Elolvastam és elfogadom az
+                                <a href="{{ url_for('privacy') }}" target="_blank">adatkezelési tájékoztatót</a>,
+                                és hozzájárulok adataim kezeléséhez.
+                            </label>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('google.login') }}" class="btn btn-outline-danger btn-lg w-100 fw-bold"
+                       id="login-btn" style="pointer-events:none; opacity:0.45;">
+                        <svg class="me-2" width="20" height="20" viewBox="0 0 48 48">
+                            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                        </svg>
+                        Bejelentkezés Google-fiókkal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('gdpr-consent').addEventListener('change', function () {
+            const btn = document.getElementById('login-btn');
+            btn.style.pointerEvents = this.checked ? 'auto' : 'none';
+            btn.style.opacity = this.checked ? '1' : '0.45';
+        });
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                const target = document.querySelector(a.getAttribute('href'));
+                if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
+            });
+        });
+    </script>
+</body>
+</html>

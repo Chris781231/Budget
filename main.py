@@ -527,7 +527,7 @@ def google_logged_in(blueprint, token):
 def login_page():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    return render_template('login.html')
+    return render_template('landing.html')
 
 
 @app.route('/logout')
