@@ -757,9 +757,10 @@ def forgot_password():
                     "subject": "Jelszó visszaállítás – Költségvetés",
                     "text": f"Szia!\n\nA jelszavad visszaállításához kattints az alábbi linkre (1 óráig érvényes):\n\n{reset_url}\n\nHa nem te kérted, hagyd figyelmen kívül ezt az emailt.\n\nÜdvözlettel,\nKöltségvetés"
                 })
-            except Exception:
+            except Exception as e:
+                app.logger.error(f"Resend hiba: {e}")
                 conn.close()
-                flash('Az email küldése sikertelen. Ellenőrizd a szerver beállításait.', 'danger')
+                flash(f'Az email küldése sikertelen: {e}', 'danger')
                 return render_template('forgot_password.html')
         conn.close()
         flash('Ha az email cím regisztrált és jelszavas fiókhoz tartozik, elküldtük a visszaállítási linket.', 'info')
