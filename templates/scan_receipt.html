@@ -266,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         row.querySelector('.item-amount')?.addEventListener('input', recalcTotal);
     });
     document.querySelector('select[name="wallet_id"]')?.addEventListener('change', recalcTotal);
+    recalcTotal();
 
     const form = document.querySelector('form[enctype]');
     if (form) {
