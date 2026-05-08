@@ -188,6 +188,21 @@ const CATEGORIES = [
     {% for c in categories %}{"id": {{ c.id }}, "name": "{{ c.name }}"},
     {% endfor %}
 ];
+const CASH_WALLET_IDS = {{ cash_wallet_ids | tojson }};
+
+function isCashWallet() {
+    const sel = document.querySelector('select[name="wallet_id"]');
+    return sel && CASH_WALLET_IDS.includes(parseInt(sel.value));
+}
+
+function roundTo5(n) {
+    const r = Math.round(n) % 5;
+    return r < 3 ? Math.round(n) - r : Math.round(n) + (5 - r);
+}
+
+function smartRound(n) {
+    return isCashWallet() ? roundTo5(n) : Math.round(n);
+}
 
 function buildCategoryOptions(selectedId) {
     let html = '<option value="">-- Kategória --</option>';
@@ -236,7 +251,7 @@ function recalcTotal() {
         total += parseFloat(row.querySelector('.item-amount').value) || 0;
     });
     const display = document.getElementById('total-display');
-    if (display) display.textContent = Math.round(total);
+    if (display) display.textContent = smartRound(total);
     updateItemCount();
 }
 
@@ -250,6 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         row.querySelector('.item-desc')?.addEventListener('input', recalcTotal);
         row.querySelector('.item-amount')?.addEventListener('input', recalcTotal);
     });
+    document.querySelector('select[name="wallet_id"]')?.addEventListener('change', recalcTotal);
 
     const form = document.querySelector('form[enctype]');
     if (form) {

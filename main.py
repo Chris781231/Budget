@@ -1767,18 +1767,22 @@ def scan_receipt():
         "SELECT * FROM categories WHERE user_id=? AND type='expense' ORDER BY name", (uid,)).fetchall()
     today = datetime.today().strftime('%Y-%m-%d')
 
+    cash_wallet_ids = [w['id'] for w in wallets if w['is_cash']]
+
     if request.method == 'POST':
         if scan_status['at_hard_limit']:
             conn.close()
             return render_template('scan_receipt.html', wallets=wallets, categories=categories,
-                                   today=today, scan_status=scan_status)
+                                   today=today, scan_status=scan_status,
+                                   cash_wallet_ids=cash_wallet_ids)
 
         files = request.files.getlist('receipt_images')
         if not files or all(f.filename == '' for f in files):
             flash('Legalább egy képet tölts fel!', 'danger')
             conn.close()
             return render_template('scan_receipt.html', wallets=wallets, categories=categories,
-                                   today=today, scan_status=scan_status)
+                                   today=today, scan_status=scan_status,
+                                   cash_wallet_ids=cash_wallet_ids)
 
         images = []
         for f in files:
@@ -1792,7 +1796,8 @@ def scan_receipt():
             flash(f'Hiba a blokk beolvasásakor: {e}', 'danger')
             conn.close()
             return render_template('scan_receipt.html', wallets=wallets, categories=categories,
-                                   today=today, scan_status=scan_status)
+                                   today=today, scan_status=scan_status,
+                                   cash_wallet_ids=cash_wallet_ids)
 
         increment_scan_used(conn, uid, scan_status)
         scan_status = get_scan_status(conn, uid)
@@ -1808,11 +1813,12 @@ def scan_receipt():
             scan_result=result, items=items, vegosszeg=vegosszeg,
             items_sum=items_sum, mismatch=mismatch,
             selected_wallet=int(selected_wallet) if selected_wallet else None,
-            scan_status=scan_status)
+            scan_status=scan_status, cash_wallet_ids=cash_wallet_ids)
 
     conn.close()
     return render_template('scan_receipt.html', wallets=wallets, categories=categories,
-                           today=today, scan_status=scan_status)
+                           today=today, scan_status=scan_status,
+                           cash_wallet_ids=cash_wallet_ids)
 
 
 @app.route('/scan-receipt/save', methods=['POST'])
@@ -1821,11 +1827,19 @@ def save_receipt():
     conn = get_db()
     uid = current_user.id
     wallet_id = int(request.form['wallet_id'])
-    w = conn.execute("SELECT id FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone()
+    w = conn.execute("SELECT id, is_cash FROM wallets WHERE id=? AND user_id=?", (wallet_id, uid)).fetchone()
     if not w:
         conn.close()
         flash('Érvénytelen tárca.', 'danger')
         return redirect(url_for('scan_receipt'))
+    is_cash = bool(w['is_cash'])
+
+    def round_amount(n):
+        n = round(n)
+        if is_cash:
+            r = n % 5
+            return n - r if r < 3 else n + (5 - r)
+        return n
 
     items_desc = request.form.getlist('item_description')
     items_amount = request.form.getlist('item_amount')
@@ -1835,7 +1849,7 @@ def save_receipt():
     for desc, amt, cat in zip(items_desc, items_amount, items_cat):
         desc = desc.strip()
         try:
-            amt = round(float(amt))
+            amt = round_amount(float(amt))
         except (ValueError, TypeError):
             continue
         if desc and amt > 0:
