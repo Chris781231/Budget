@@ -16,7 +16,12 @@
 {% endblock %}
 
 {% block content %}
-<h2 class="mb-3">Tranzakciók</h2>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="mb-0">Tranzakciók</h2>
+    <a href="{{ url_for('scan_receipt') }}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-camera"></i> Blokkfotó
+    </a>
+</div>
 
 <ul class="nav nav-pills mb-4" id="wallet-tabs">
     <li class="nav-item">

@@ -1104,7 +1104,10 @@ def index():
             SELECT COALESCE(SUM(t.amount), 0) FROM transactions t
             JOIN wallets w ON t.wallet_id=w.id
             WHERE t.type='expense' AND w.user_id=?''', (uid,)).fetchone()[0]
-        balance = income - expense
+        initial_sum = conn.execute(
+            "SELECT COALESCE(SUM(initial_balance), 0) FROM wallets WHERE user_id=?",
+            (uid,)).fetchone()[0]
+        balance = initial_sum + income - expense
         recent = conn.execute('''
             SELECT t.*, c.name as category_name, w.name as wallet_name
             FROM transactions t
@@ -1832,7 +1835,7 @@ def save_receipt():
     for desc, amt, cat in zip(items_desc, items_amount, items_cat):
         desc = desc.strip()
         try:
-            amt = float(amt)
+            amt = round(float(amt))
         except (ValueError, TypeError):
             continue
         if desc and amt > 0:
